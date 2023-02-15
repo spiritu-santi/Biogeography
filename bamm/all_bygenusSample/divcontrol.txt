@@ -1,0 +1,98 @@
+# BAMM configuration file for speciation/extinction analysis 
+# ==========================================================
+#
+# Format
+# ------
+#
+#     - Each option is specified as: option_name = option_value
+#     - Comments start with # and go to the end of the line
+#     - True is specified with "1" and False with "0"
+
+
+################################################################################
+# GENERAL SETUP AND DATA INPUT
+################################################################################
+modeltype = speciationextinction        
+treefile = Ultra_mcc_master_pruned.tre
+runInfoFilename = run_info.txt
+sampleFromPriorOnly = 0                 
+runMCMC = 1                             
+simulatePriorShifts = 1
+loadEventData = 0
+eventDataInfile = event_data_in.txt
+initializeModel = 1
+useGlobalSamplingProbability = 0                                        
+globalSamplingFraction = 0.6
+sampleProbsFilename = sample_probs_byGenus.txt
+overwrite = 1
+
+################################################################################
+# PRIORS
+################################################################################
+
+expectedNumberOfShifts = 1.0
+lambdaInitPrior = 7.71006424283915
+lambdaShiftPrior = 0.00553237642265941
+muInitPrior = 7.71006424283915
+lambdaIsTimeVariablePrior = 0.5
+
+################################################################################
+# MCMC SIMULATION SETTINGS & OUTPUT OPTIONS
+################################################################################
+
+numberOfGenerations = 25000000
+mcmcOutfile = mcmc_out.txt
+mcmcWriteFreq = 1000
+eventDataOutfile = event_data.txt
+eventDataWriteFreq = 1000
+printFreq = 1000
+acceptanceResetFreq = 2000
+
+################################################################################
+# OPERATORS: MCMC SCALING OPERATORS
+################################################################################
+
+updateLambdaInitScale = 2.0
+updateLambdaShiftScale = 0.1
+updateMuInitScale = 2.0
+updateEventLocationScale = 0.1
+updateEventRateScale = 4.0
+
+################################################################################
+# OPERATORS: MCMC MOVE FREQUENCIES
+################################################################################
+
+updateRateEventNumber = 1
+updateRateEventPosition = 1
+updateRateEventRate = 1
+updateRateLambda0 = 1
+updateRateLambdaShift = 1
+updateRateMu0 = 1
+updateRateLambdaTimeMode = 0.1
+localGlobalMoveRatio = 10.0
+
+################################################################################
+# INITIAL PARAMETER VALUES
+################################################################################
+
+lambdaInit0 = 0.032
+lambdaShift0 = 0
+muInit0 = 0.005
+initialNumberEvents = 0
+
+################################################################################
+# METROPOLIS COUPLED MCMC
+################################################################################
+
+numberOfChains = 4
+deltaT = 0.05
+swapPeriod = 1000
+chainSwapFileName = chain_swap.txt
+ 
+
+################################################################################
+# NUMERICAL AND OTHER PARAMETERS
+################################################################################
+
+minCladeSizeForShift = 2
+segLength = 0.025
