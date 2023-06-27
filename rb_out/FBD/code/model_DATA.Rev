@@ -13,9 +13,7 @@ cytb.addMissingTaxa(taxa)
 
 intervals = readDataDelimitedFile(file="data/Master_fossil_intervals.tsv", header=true)
 
-last_rates = readDataDelimitedFile(file="data/last_rates.txt", header=false)
-
 ## helpers
 mvi = 1
 n_taxa <- taxa.size()
-phy_init = readTrees("data/Init_FBD_5.2.tre")[1]
+phy_init = readTrees("data/Init_FBD_5.1.tre")[1]

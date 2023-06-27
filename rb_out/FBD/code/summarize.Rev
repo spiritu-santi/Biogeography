@@ -1,8 +1,8 @@
 # Read in the tree trace and construct the maximum clade credibility (MCC) tree #
 
-trace = readTreeTrace(file = "output/Master_Comb.trees", burnin=0, thinning = 1, nruns=1)
+trace = readTreeTrace(file = "output/Master_Cyathea.trees", burnin=0.9, thinning = 1,nruns=1)
 
 # Summarize tree trace and save MCC tree to file
-mccTree(trace, file = "output/MCC_Master.tre", positiveBranchLengths = TRUE, sampledAncestors = TRUE, mean = FALSE)
+mccTree(trace, file = "output/fullMCC.tre", positiveBranchLengths = TRUE, sampledAncestors = TRUE, mean = FALSE)
 
 q()

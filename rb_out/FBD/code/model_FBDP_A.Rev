@@ -3,25 +3,25 @@
 ##########################################################################################
 
 div_sd <- 0.5
-div_mean := ln( abs( ln(n_taxa/2) ) / 230) - 0.5 * div_sd^2
+div_mean := ln( abs( ln(n_taxa/2) ) / 260) - 0.5 * div_sd^2
 diversification ~ dnLognormal( mean=div_mean, sd=div_sd )
 turnover ~ dnBeta(10,1)
-turnover.setValue(0.933)
+turnover.setValue(0.9)
 
 speciation_rate := diversification / abs(1.0 - turnover)
 extinction_rate := turnover * speciation_rate
 
 psi_f ~ dnBeta(1,200)
-psi_f.setValue(0.00895)
+psi_f.setValue(0.012)
 
 psi := speciation_rate * psi_f
 
 tune_targets = [ 0.1, 0.44, 0.65 ]
-tune_weights = [ 2, 4, 10 ]
+tune_weights = [ 2, 5, 5 ]
 for (i in 1:tune_targets.size()) {
     moves[mvi++] = mvScale(diversification, weight=tune_weights[i], tuneTarget=tune_targets[i], lambda=0.5)
     moves[mvi++] = mvSlide(turnover, weight=tune_weights[i], tuneTarget=tune_targets[i], delta=0.2)
-    moves[mvi++] = mvSlide(psi_f, weight=tune_weights[i], tuneTarget=tune_targets[i], delta=0.02)
+    moves[mvi++] = mvSlide(psi_f, weight=tune_weights[i], tuneTarget=tune_targets[i], delta=0.2)
 }
 
 
@@ -49,27 +49,26 @@ rho <- 0.60
 #moves[mvi++] = mvScale(psi, lambda=1, weight=10)
 
 origin_time ~ dnUnif(215, 230)
-origin_time.setValue(222.36)
-moves[mvi++] = mvSlide(origin_time, delta=2, weight=1.0)
+origin_time.setValue(220)
+moves[mvi++] = mvSlide(origin_time, delta=0.1, weight=1.0)
 
-fbd_dist = dnFBDP(origin=origin_time, lambda=speciation_rate, mu=extinction_rate, psi=psi, rho=rho, taxa=taxa, condition="time")
+fbd_dist = dnFBDP(origin=origin_time, lambda=speciation_rate, mu=extinction_rate, psi=psi, rho=rho, taxa=taxa, condition="survival")
+
 fbd_tree ~ dnConstrainedTopology(fbd_dist, constraints = constraints )
 fbd_tree.setValue(phy_init)
 
 # Specify moves on the tree and node times #
 # These moves update the tree topology 
-n_branches = 2 * n_taxa - 2
-moves[mvi++] = mvNNI(fbd_tree,weight= n_branches/4)
-moves[mvi++] = mvFNPR(fbd_tree, weight= n_branches/4)
-moves[mvi++] = mvCollapseExpandFossilBranch(fbd_tree, origin=origin_time, weight=10.0)
+moves[mvi++] = mvFNPR(fbd_tree, weight=15.0)
+moves[mvi++] = mvCollapseExpandFossilBranch(fbd_tree, origin=origin_time, weight=6.0)
 
 # These moves update the node ages #
 # Because we are conditioning on the origin time, we must also sample the root node age #
-moves[mvi++] = mvNodeTimeSlideUniform(fbd_tree, weight= n_branches/4)
-moves[mvi++] = mvRootTimeSlideUniform(fbd_tree, origin_time, weight=20)
+moves[mvi++] = mvNodeTimeSlideUniform(fbd_tree, weight=20.0)
+moves[mvi++] = mvRootTimeSlideUniform(fbd_tree, origin_time, weight=5.0)
 
 # Setup the fossil tip sampling #
-# Use a for loop to create a uniform distribution on the occurence time for each fossil #
+# Use a for loop to create a uniform distribution on the occurrence time for each fossil #
 # The boundaries of the uniform distribution are specified in the tsv file #
 for(i in 1:intervals.size())
 {
@@ -84,7 +83,9 @@ for(i in 1:intervals.size())
 }
 
 # Add a move to sample the fossil times #
-moves[mvi++] = mvFossilTimeSlideUniform(fbd_tree, origin_time, weight=50)
+moves[mvi++] = mvFossilTimeSlideUniform(fbd_tree, origin_time, weight=5.0)
+moves[mvi++] = mvFossilTimeSlideUniform(fbd_tree, origin_time, weight=1.0)
+moves[mvi++] = mvFossilTimeSlideUniform(fbd_tree, origin_time, weight=1.0)
 
 ### Create deterministic nodes to monitor various tree statistics ###
 # Monitor the number of sampled ancestors in the FBD-tree #
