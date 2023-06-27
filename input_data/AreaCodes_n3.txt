@@ -1,0 +1,8 @@
+state	state_label	state_colors	region	old_colors	state_colors
+1	Laurasia	orange	Laurasia	"#2D223C"	"#E76254"
+2	Holotropical	grey50	combined	"#CEB1CE"	"#1E466E"
+3	Antarctic	forestgreen	Gondwana	"#0E2810"	"#32608D"
+4	Laurasia + Holotropical	aquamarine	Gondwana	"#406543"	"#D4E1CB"
+5	Laurasia + Antarctic	aquamarine	Gondwana	"#406543"	"#F7E5BA"
+6	Holotropical + Antarctic	aquamarine	Gondwana	"#406543"	"#D4E1CB"
+7	...	white	none	white	white
