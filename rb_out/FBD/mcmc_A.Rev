@@ -1,0 +1,41 @@
+################################################################################
+#
+# RevBayes Example: Total-evidence dating under the fossilized birth-death model
+# 
+# This file: Runs the full MCMC ...
+#
+# authors: Tracy A. Heath, Walker C. Pett, April M. Wright
+#
+################################################################################
+source("code/model_DATA.Rev")
+source("code/model_Clades.Rev")
+source("code/model_FBDP_A.Rev")
+source("code/model_UExp.Rev")
+source("code/model_GTR.Rev")
+
+
+########
+# MCMC #
+########
+
+# initialize the model object #
+mymodel = model(sf)
+
+mni = 1
+
+# Monitors #
+monitors[mni++] = mnModel(filename="output/Master_Cyathea.log", printgen=10)
+monitors[mni++] = mnFile(filename="output/Master_Cyathea.trees", printgen=10, fbd_tree)
+monitors[mni++] = mnFile(filename="output/Master_Cyathea_pruned.trees", printgen=10, fbd_tree_pruned)
+# 3. and a few select parameters to be printed to the screen #
+monitors[mni++] = mnScreen(printgen=10, num_samp_anc, origin_time)
+
+# Initialize the MCMC object #
+mymcmc = mcmc(mymodel, monitors, moves, nruns = 1)
+
+# Run the MCMC #
+#mymcmc.burnin(generations=2000,tuningInterval=100)
+mymcmc.run(generations=50000)
+
+# Quit RevBayes #
+q()
