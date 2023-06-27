@@ -1,0 +1,30 @@
+#######################
+# Reading in the Data #
+#######################
+taxa <- readTaxonData(in_fp + taxa_fn)
+n_taxa <- taxa.size()
+n_branches = 2 * n_taxa - 2
+
+if(do_fbd) {
+cytb <- readDiscreteCharacterData(in_fp + mol_fn)
+	cytb.addMissingTaxa(taxa)
+}
+
+intervals = readDataDelimitedFile(file=in_fp + intervals_fn, header=true)
+
+fbd_tree = readTrees("/Users/spiritusanti/Documents/1.PROYECTOS/5.TREE_FERNS/TREE_FERNS_v4/R_project/output_data/MCC_Master_Resolved.tre")[1]
+#treetrace = readTreeTrace(tree_init_fn, treetype="clock", burnin=0.0, thinning=1)
+
+
+max_areas = max_areas
+n_states  = 0
+for (k in 0:max_areas) {n_states += choose(n_areas, k)}
+
+dat_bg_n <- readDiscreteCharacterData(file = in_fp + range_fn)
+if(!masked) dat_bg_n = formatDiscreteCharacterData(dat_bg_n, "DEC", n_states)
+
+times_bg    = readDataDelimitedFile(file=in_fp+bg_times_fn, header=true, delimiter=",")
+if(use_epochs) {n_epochs_bg = times_bg.size()} else {n_epochs_bg=1}
+for (i in 1:n_epochs_bg) {
+    connectivity_bg[i] = readDataDelimitedFile(file=in_fp + conn_fn + "." + i + ".csv", header=true, rownames=true, delimiter=",")
+}

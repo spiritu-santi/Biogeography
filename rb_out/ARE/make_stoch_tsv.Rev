@@ -1,0 +1,34 @@
+#!/usr/bin/rb
+
+ fn = "my_run.1.no_biome"
+
+pruned = true
+if(pruned) out_fp = "output_pruned/"
+if(!pruned) out_fp = "output/"
+
+
+# burn-in
+f_burn = 0.1
+
+# MCC tree
+tree_trace=readTreeTrace(out_fp+fn)
+tree_trace.setBurnin(f_burn)
+mcc_tree = mccTree(trace= tree_trace,file = out_fp + fn + ".mcc.tre", positiveBranchLengths=true)
+
+# read in tree trace -- note we only need this when the tree 
+# and ancestral states are jointly estimated
+print("--> Reading tree trace file")
+state_tree_trace  = readTreeTrace(file= out_fp + fn + ".trees", treetype="clock")
+state_tree_trace.setBurnin(f_burn)
+
+# read in character map trace files
+bg_anc_state_trace = readAncestralStateTrace(out_fp + fn + ".bg" + ".stoch_map.txt") 
+
+# generate marginal MAP character history to be plotted
+#characterMapTree(tree=mcc_tree, anc_state_trace, out_fn+".char.tree", out_fn+".posteriors.tree", num_time_slices=500, burnin=0.5)
+
+# create a file that summarizes the sampled stochastically mapped transitions
+summarizeCharacterMaps(tree= mcc_tree, character_map_trace_vector=bg_anc_state_trace, out_fp + fn + ".history.tsv", burnin=f_burn)
+
+
+quit()

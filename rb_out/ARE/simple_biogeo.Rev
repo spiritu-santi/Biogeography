@@ -1,0 +1,90 @@
+
+#######################
+# Biogeography models #
+#######################
+
+# the biogeographic event rate multiplier
+clock_bg ~ dnLoguniform(1E-4,1E2)
+clock_bg.setValue(1E-2)
+mv[mvi++] = mvScale(clock_bg, lambda=0.2, weight=5)
+mv[mvi++] = mvScale(clock_bg, weight=2)
+
+# the relative dispersal rate
+dispersal_rate <- 1.0
+# build the relative dispersal rate matrix
+k=1
+for (i in 1:n_areas) {
+for (j in 1:n_areas) {if (connectivity_bg[k][i][j] == 1.0 || use_epochs == false) {dr_bg[k][i][j] <-abs(1)} else {dr_bg[k][i][j] := 0.01}}
+}
+
+
+# then the relative extirpation rate (or per-area extinction rates)
+er_base_sd <- 0.1
+er_base_mean <- ln(abs(1.0)) -0.5*er_base_sd^2
+er_base ~ dnLognormal(er_base_mean, er_base_sd)
+er_base.setValue(0.1)
+mv[mvi++] = mvScale(er_base, weight=5)
+
+
+# build the relative extirpation rate matrix
+for (i in 1:n_areas) {
+    for (j in 1:n_areas) {
+        er_bg[i][j] <- abs(0)
+    er_bg[i][i] := er_base
+    }
+}
+
+# build the DEC rate matrix
+Q_DEC := fnDECRateMatrix(dispersalRates=dr_bg[1], extirpationRates=er_bg,maxRangeSize=max_areas,
+                                nullRange="CondSurv")
+                           
+# build cladogenetic transition probabilities
+clado_event_types = ["s","a"]
+p_sympatry ~ dnBeta(1,1)
+p_sympatry.setValue(0.5)
+mv[mvi++] = mvSlide(p_sympatry, weight=5, delta=0.2)
+p_allopatry := abs(1.0 - p_sympatry)
+clado_event_probs := simplex(p_sympatry, p_allopatry)
+P_DEC := fnDECCladoProbs(eventProbs=clado_event_probs,
+                         eventTypes=clado_event_types,
+                         numCharacters=n_areas)
+
+# the phylogenetic CTMC with cladogenetic events
+m_bg ~ dnPhyloCTMCClado(tree=fbd_tree,Q=Q_DEC[1],cladoProbs=P_DEC,branchRates=clock_bg,type="Standard",nSites=1)
+    
+# attach the range data
+m_bg.clamp(dat_range_n)
+
+############
+# Monitors #
+############
+
+monitors.append( mnScreen(printgen=100, rate_bg) )
+monitors.append( mnModel(file=out_fn+".model.log", printgen=10) )
+monitors.append( mnFile(tree, filename=out_fn+".tre", printgen=10) )
+monitors.append( mnJointConditionalAncestralState(tree=tree,
+                                                  ctmc=m_bg,
+                                                  type="NaturalNumbers",
+                                                  withTips=true,
+                                                  withStartStates=true,
+                                                  filename=out_fn+".states.log",
+                                                  printgen=10) )
+monitors.append( mnStochasticCharacterMap(ctmc=m_bg,
+                                          filename=out_fn+".stoch.log",
+                                          printgen=100) )
+
+############
+# Analysis #
+############
+
+# build the model analysis object from the model graph
+mymodel = model(m_bg)
+
+# create the MCMC analysis object
+mymcmc = mcmc(mymodel, monitors, moves)
+
+# run the MCMC analysis
+mymcmc.run(n_gen)
+
+# exit
+quit()

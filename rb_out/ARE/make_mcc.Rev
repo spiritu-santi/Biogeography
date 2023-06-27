@@ -1,0 +1,41 @@
+##############
+if (!exists("fn"))          fn = "my_run.1.no_biome"
+if (!exists("make_states")) make_states = true
+
+# Location of tree files
+if(pruned) out_fp = "output_pruned/"
+if(!pruned) out_fp = "output/"
+
+
+f_burn = 0.1
+
+
+print("Processing output for fn = \"" + fn + "\"")
+
+print("--> Reading tree trace file")
+state_tree_trace  = readTreeTrace(file= out_fp + fn + ".trees", treetype="clock")
+mcc_tree = mccTree(trace=state_tree_trace,file = out_fp + fn + ".mcc.tre", positiveBranchLengths=true)
+#if(!pruned) map_tree = readTrees(trace=state_tree_trace, treetype="clock")[1]
+#if(pruned) map_tree = readTrees("FBD_v2.abril2020/output/cyathea.mcc.pruned.tre")[1]
+
+if (make_states) {
+    print("--> Reading ancestral range estimate trace file")
+    state_trace_bg = readAncestralStateTrace(file=out_fp+fn+".bg.states.txt", separator="\t")
+    # print("--> Re-reading tree trace file for ancestral states")
+    n_mcmc = state_tree_trace.size()
+    n_burn = floor(f_burn * n_mcmc)
+    print("--> Building ancestral range estimates (this can take a while)")
+    bg_tree = ancestralStateTree(tree = mcc_tree, tree_trace = state_tree_trace,
+                       ancestral_state_trace_vector=state_trace_bg,
+                       include_start_states=true,
+                       file=out_fp+fn+".bg.ase.tre",
+                       summary_statistic="MAP",
+                       reconstruction="conditional",
+                       burnin= n_burn,
+                       nStates=3,
+                       site=1)
+}
+print("...done!")
+print("")
+
+q()
