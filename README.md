@@ -14,7 +14,7 @@ The script is fully functional, but some of the functions are not yet fully auto
 
 The R and RevBayes code was last updated July 10, 2023 and contains all the necessary functions necessary.
 
-Code and data are available at Zenodo: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8239494.svg)](https://zenodo.org/badge/DOI/10.5281/zenodo.8239494.svg)
+Code and data are available at Zenodo: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8239494.svg)](https://zenodo.org/badge/latestdoi/8239494)
 
 
 When using the code please cite:
