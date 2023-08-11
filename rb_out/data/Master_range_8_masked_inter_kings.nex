@@ -2,7 +2,7 @@
 
 Begin data;
 Dimensions ntax=543 nchar=1;
-Format datatype=Standard symbols="01234567" missing=? gap=-;
+Format datatype=Standard symbols="0123456" missing=? gap=-;
 
 Matrix
 Alsophila_abbottii	2
@@ -447,106 +447,106 @@ Sphaeropteris_truncata	2
 Sphaeropteris_vittata	2
 Sphaeropteris_werneri	2
 Thyrsopteris_elegans	3
-Cyathea_divertens	(1 2 3)
-Cyathea_colombiensis	(1 2 3)
-Cyathea_juliverti	(1 2 3)
-Cyathea_siwalika	(1 2 3)
-Cyathea_paleospora	(1 2 3)
-Cyathea_porospora	(1 2 3)
-SphaeropterisTrichipteris_Graham	(1 2 3)
-Cnemidaria_sp	(1 2 3)
-Cyathea_type1	(1 2 3)
-Cyathea_type2	(1 2 3)
-Dentropteridium_cyatheoides	(1 2 3)
-Cyatheacidites_annulatus_Kerguelen	(1 2 3)
-Dicksonia_patagonica	(1 2 3)
-Culcita_emberi	(1 2 3)
-Cyathea_sp	(1 2 3)
-Cyatheacidites_annulatus	(1 2 3)
-Alsophilocaulis_calveloi	(1 2 3)
-Alsophila_antarctica	(1 2 3)
-Cyathea_sp_Graham	(1 2 3)
-Hemitelia_sp_Graham	(1 2 3)
-Nishidacaulis_burgii	(1 2 3)
-Dicksonia_dissecta	(1 2 3)
-Cyathodendron_texanum	(1 2 3)
-Cibotium_oregonense	(1 2 3)
-Cyathea_inequilateralis	(1 2 3)
-Cyathea_pinnata	(1 2 3)
-Dicksonia_sp_BertoliCunha	(1 2 3)
-Kuylisporites_walterbolkii	(1 2 3)
-Coniopteris_blomstrandii	(1 2 3)
-Cibotium_tasmanense	(1 2 3)
-Lophosoria_antarctica	(1 2 3)
-Cnemidaria_magna	(1 2 3)
-Kuylisporites_separatus	(1 2 3)
-Protocyathea_cretaceae	(1 2 3)
-Rickwoodopteris_hirsuta	(1 2 3)
-Cyathorachis_fujiana	(1 2 3)
-Cyathorachis_yubariensis	(1 2 3)
-Cyathorachis_yudzuruogurae	(1 2 3)
-Thyrsopterorachis_mesozoica	(1 2 3)
-Cyatheacidites_botuliformis	(1 2 3)
-Alsophilidites_delectus	(1 2 3)
-Dicksonia_bulbacea	(1 2 3)
-Dicksonia_densa	(1 2 3)
-Heilongjiangcaulis_keshanensis	(1 2 3)
-Kuylisporites_aduncus	(1 2 3)
-Cyathocaulis_yezopteroides	(1 2 3)
-Cibotium_iwatense	(1 2 3)
-Paracyathocaulis_ogurae	(1 2 3)
-Alsophila_formosa	(1 2 3)
-Cyathea_fossilis	(1 2 3)
-Dicksonia_lanatiformis	(1 2 3)
-Dicksonia_verrucosa	(1 2 3)
-Oncopteris_nettwallii	(1 2 3)
-Protopteris_maletinensis	(1 2 3)
-Protopteris_punctata	(1 2 3)
-Protopteris_singeri	(1 2 3)
-Thyrsopteris_cretaceae	(1 2 3)
-Dicksonia_dubia	(1 2 3)
-Hemitelia_karsteniana	(1 2 3)
-Kuylisporites_mirabilis	(1 2 3)
-Kwazulupteris_schaarschmidtii	(1 2 3)
-Natalipteris_widei	(1 2 3)
-Cyathocaulis_yabei	(1 2 3)
-Alsophila_arcuata	(1 2 3)
-Lophosoria_falsa	(1 2 3)
-Cyatheacidites_archangelskyi	(1 2 3)
-Alienopteris_livingstonensis	(1 2 3)
-Alsophila_major	(1 2 3)
-Conantiopteris_schumanii	(1 2 3)
-Cyatheacidites_tectifera	(1 2 3)
-Cyatheales_indet_Vera	(1 2 3)
-Cyathidites_patagonicus	(1 2 3)
-Eocyathea_remesaliae	(1 2 3)
-Lophosoria_cupulatus	(1 2 3)
-Rafaherbstia_nishidai	(1 2 3)
-Sergioa_austrina	(1 2 3)
-Yavanna_chimaerica	(1 2 3)
-Cyathea_cyathifolia	(1 2 3)
-Cyathocaulis_niheitakagii	(1 2 3)
-Loxsomopteris_anasilla	(1 2 3)
-Cyathidites_australis	(1 2 3)
-Cyathea_cranhamii	(1 2 3)
-Cyathidites_minor	(1 2 3)
-Oguracaulis_banksii	(1 2 3)
-Cibotiocaulis_tateiwai	(1 2 3)
-Cyathocaulis_naktongensis	(1 2 3)
-Protocyathea_cyatheoides	(1 2 3)
-Protocyathea_rajmahalense	(1 2 3)
-Coniopteris_bella	(1 2 3)
-Eboracia_lobifolia	(1 2 3)
-Coniopteris_concinna	(1 2 3)
-Coniopteris_hymenophylloides	(1 2 3)
-Coniopteris_margaretae	(1 2 3)
-Coniopteris_murrayana	(1 2 3)
-Coniopteris_cf_murrayana	(1 2 3)
-Coniopteris_spA	(1 2 3)
-Coniopteris_lobata	(1 2 3)
-Coniopteris_simplex	(1 2 3)
-Dicksonia_kendalliae	(1 2 3)
-Dicksonia_mariopteris	(1 2 3)
-Kylispirites_arguta	(1 2 3)
+Cyathea_divertens	2
+Cyathea_colombiensis	2
+Cyathea_juliverti	2
+Cyathea_siwalika	(1 2 3 4 5 6)
+Cyathea_paleospora	(1 2 3 4 5 6)
+Cyathea_porospora	(1 2 3 4 5 6)
+SphaeropterisTrichipteris_Graham	2
+Cnemidaria_sp	2
+Cyathea_type1	2
+Cyathea_type2	2
+Dentropteridium_cyatheoides	2
+Cyatheacidites_annulatus_Kerguelen	3
+Dicksonia_patagonica	(1 2 3 4 5 6)
+Culcita_emberi	1
+Cyathea_sp	(1 2 3 4 5 6)
+Cyatheacidites_annulatus	2
+Alsophilocaulis_calveloi	3
+Alsophila_antarctica	(1 2 3 4 5 6)
+Cyathea_sp_Graham	2
+Hemitelia_sp_Graham	2
+Nishidacaulis_burgii	1
+Dicksonia_dissecta	(1 2 3 4 5 6)
+Cyathodendron_texanum	1
+Cibotium_oregonense	1
+Cyathea_inequilateralis	(1 2 3 4 5 6)
+Cyathea_pinnata	(1 2 3 4 5 6)
+Dicksonia_sp_BertoliCunha	3
+Kuylisporites_walterbolkii	3
+Coniopteris_blomstrandii	(1 2 3 4 5 6)
+Cibotium_tasmanense	2
+Lophosoria_antarctica	(1 2 3 4 5 6)
+Cnemidaria_magna	(1 2 3 4 5 6)
+Kuylisporites_separatus	1
+Protocyathea_cretaceae	(1 2 3 4 5 6)
+Rickwoodopteris_hirsuta	(1 2 3 4 5 6)
+Cyathorachis_fujiana	(1 2 3 4 5 6)
+Cyathorachis_yubariensis	(1 2 3 4 5 6)
+Cyathorachis_yudzuruogurae	(1 2 3 4 5 6)
+Thyrsopterorachis_mesozoica	1
+Cyatheacidites_botuliformis	(1 2 3 4 5 6)
+Alsophilidites_delectus	(1 2 3 4 5 6)
+Dicksonia_bulbacea	(1 2 3 4 5 6)
+Dicksonia_densa	(1 2 3 4 5 6)
+Heilongjiangcaulis_keshanensis	1
+Kuylisporites_aduncus	1
+Cyathocaulis_yezopteroides	1
+Cibotium_iwatense	1
+Paracyathocaulis_ogurae	(1 2 3 4 5 6)
+Alsophila_formosa	(1 2 3 4 5 6)
+Cyathea_fossilis	(1 2 3 4 5 6)
+Dicksonia_lanatiformis	(1 2 3 4 5 6)
+Dicksonia_verrucosa	(1 2 3 4 5 6)
+Oncopteris_nettwallii	(1 2 3 4 5 6)
+Protopteris_maletinensis	(1 2 3 4 5 6)
+Protopteris_punctata	(1 2 3 4 5 6)
+Protopteris_singeri	(1 2 3 4 5 6)
+Thyrsopteris_cretaceae	(1 2 3 4 5 6)
+Dicksonia_dubia	(1 2 3 4 5 6)
+Hemitelia_karsteniana	1
+Kuylisporites_mirabilis	1
+Kwazulupteris_schaarschmidtii	(1 2 3 4 5 6)
+Natalipteris_widei	(1 2 3 4 5 6)
+Cyathocaulis_yabei	(1 2 3 4 5 6)
+Alsophila_arcuata	(1 2 3 4 5 6)
+Lophosoria_falsa	1
+Cyatheacidites_archangelskyi	(1 2 3 4 5 6)
+Alienopteris_livingstonensis	(1 2 3 4 5 6)
+Alsophila_major	(1 2 3 4 5 6)
+Conantiopteris_schumanii	1
+Cyatheacidites_tectifera	(1 2 3 4 5 6)
+Cyatheales_indet_Vera	(1 2 3 4 5 6)
+Cyathidites_patagonicus	(1 2 3 4 5 6)
+Eocyathea_remesaliae	3
+Lophosoria_cupulatus	3
+Rafaherbstia_nishidai	(1 2 3 4 5 6)
+Sergioa_austrina	3
+Yavanna_chimaerica	3
+Cyathea_cyathifolia	3
+Cyathocaulis_niheitakagii	1
+Loxsomopteris_anasilla	1
+Cyathidites_australis	2
+Cyathea_cranhamii	1
+Cyathidites_minor	1
+Oguracaulis_banksii	2
+Cibotiocaulis_tateiwai	1
+Cyathocaulis_naktongensis	(1 2 3 4 5 6)
+Protocyathea_cyatheoides	(1 2 3 4 5 6)
+Protocyathea_rajmahalense	(1 2 3 4 5 6)
+Coniopteris_bella	(1 2 3 4 5 6)
+Eboracia_lobifolia	1
+Coniopteris_concinna	(1 2 3 4 5 6)
+Coniopteris_hymenophylloides	(1 2 3 4 5 6)
+Coniopteris_margaretae	(1 2 3 4 5 6)
+Coniopteris_murrayana	(1 2 3 4 5 6)
+Coniopteris_cf_murrayana	(1 2 3 4 5 6)
+Coniopteris_spA	(1 2 3 4 5 6)
+Coniopteris_lobata	(1 2 3 4 5 6)
+Coniopteris_simplex	(1 2 3 4 5 6)
+Dicksonia_kendalliae	(1 2 3 4 5 6)
+Dicksonia_mariopteris	(1 2 3 4 5 6)
+Kylispirites_arguta	(1 2 3 4 5 6)
 ;
 End;
