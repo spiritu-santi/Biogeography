@@ -5,4 +5,5 @@ state	state_label	state_colors_old	region	old_colors	state_colors
 4	Laurasia + Holotropical	aquamarine	Gondwana	"#406543"	"#D4E1CB"
 5	Laurasia + Antarctic	aquamarine	Gondwana	"#406543"	"#F7E5BA"
 6	Holotropical + Antarctic	aquamarine	Gondwana	"#406543"	"#D4E1CB"
-7	...	white	none	white	white
+7	Laurasia + Holotropical + Antarctic	aquamarine	Gondwana	"#406543"	"grey50"
+8	...	white	none	white	white

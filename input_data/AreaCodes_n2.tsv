@@ -1,0 +1,5 @@
+state	state_label	state_colors	region	old_colors	state_colors
+1	Gondawana	orange	Gondwana	"#2D223C"	"#1E466E"
+2	Laurasia	forestgreen	Laurasia	"#0E2810"	"#E76254"
+3	Gondwana + Laurasia	aquamarine	both	"#406543"	"#F7E5BA"
+4	...	white	none	white	white
