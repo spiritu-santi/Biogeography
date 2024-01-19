@@ -2,7 +2,7 @@
 
 Files needed to run the results from:
 
-Ramírez-Barahona S (2023) Laurasian legacies in the Gondwanan tree fern order Cyatheales. bioRxiv, https://doi.org/10.1101/2023.02.13.528358
+Ramírez-Barahona S (2023) bioRxiv, https://doi.org/10.1101/2023.02.13.528358
 
 The repository follows the file system of the R project (R_project.Rproj). All directories are needed to properly run the functions.  
 All plots and processing of output was performed in R; the core analyses were performed in RevBayes.  
