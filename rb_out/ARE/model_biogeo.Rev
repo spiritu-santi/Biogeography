@@ -12,8 +12,16 @@ er_base_2 ~ dnLognormal(er_base_mean, er_base_sd)
 er_base_2.setValue(0.01)
 mv[mvi++] = mvScale(er_base_2, weight=5)
 
+if(n_areas == 2) {er_base := v(er_base_1, er_base_2)}
 
-if(n_areas != 2) { 
+if(n_areas == 3) { 
+er_base_3 ~ dnLognormal(er_base_mean, er_base_sd)
+er_base_3.setValue(0.01)
+mv[mvi++] = mvScale(er_base_3, weight=5)
+
+er_base := v(er_base_1, er_base_2, er_base_3)}
+
+if(n_areas == 8) { 
 er_base_3 ~ dnLognormal(er_base_mean, er_base_sd)
 er_base_3.setValue(0.01)
 mv[mvi++] = mvScale(er_base_3, weight=5)
@@ -41,8 +49,6 @@ mv[mvi++] = mvScale(er_base_8, weight=5)
 er_base := v(er_base_1, er_base_2, er_base_3, er_base_4, er_base_5, er_base_6, er_base_7, er_base_8)
 }
 
-if(n_areas == 2) {er_base := v(er_base_1, er_base_2)}
-
 for (i in 1:n_areas) {
     for (j in 1: n_areas) {
         er_bg[i][j] <- abs(0)
@@ -53,7 +59,7 @@ for (i in 1:n_areas) {
 # clock
 clock_bg ~ dnLoguniform(min = 0.001, max=10 )
 clock_bg.setValue(1e-2)
-mv[mvi++] = mvScale(clock_bg, lambda=0.2, weight=5)
+#mv[mvi++] = mvScale(clock_bg, lambda=0.2, weight=2)
 mv[mvi++] = mvScale(clock_bg, weight=2)
 
 if(use_epochs) {
@@ -65,11 +71,11 @@ for (k in 1:n_bg_epochs) {
     for (i in 1:n_areas) {
         for (j in 1:n_areas) {
             if (connectivity_bg[k][i][j] == 1.0 || use_epochs == false) {dr_bg[k][i][j] <- abs(1)} else {dr_bg[k][i][j] := ldd
-mv[mvi++] = mvSlide(ldd, weight=5, delta=0.2)}
+mv[mvi++] = mvSlide(ldd, weight=10, delta=0.2)}
         }
     }
 
-    Q_DEC[k] := fnDECRateMatrix(dispersalRates=dr_bg[k],
+    Q_DEC[k] := fnDECRateMatrix(dispersalRates=v[k],
                                 extirpationRates=er_bg,
                                 maxRangeSize=max_areas,
                                 nullRange="Exclude")
@@ -84,7 +90,7 @@ clado_event_types = ["s","a"]
 p_sympatry ~ dnBeta(0.1,1)
 p_sympatry.setValue(0.15)
 mv[mvi++] = mvSlide(p_sympatry, weight=5, delta=0.2)
-p_allopatry := abs(1.0 - p_sympatry)
+p_allopatry := abs(1.0 - p_sympatvry)
 clado_event_probs := simplex( p_sympatry, p_allopatry )
 P_DEC := fnDECCladoProbs(eventProbs= clado_event_probs,
                               eventTypes=clado_event_types,
@@ -93,15 +99,18 @@ P_DEC := fnDECCladoProbs(eventProbs= clado_event_probs,
 
 # root freqs
 rf_bg_raw <- rep(1, n_states)
+rf_bg := simplex(rf_bg_raw)
 
-rf_bg <- rf_bg_raw
-#fbd_tree ~ dnEmpiricalTree(treetrace)
-#mv[mvi++] = mvEmpiricalTree(fbd_tree, weight=5, metropolisHastings=true)
+# If the tree topology is not fixed, the MCMC chain will sample from the posterior sample of trees.
+if(!fixed) fbd_tree ~ dnEmpiricalTree(treetrace)
+if(!fixed) mv[mvi++] = mvEmpiricalTree(fbd_tree, weight=5, metropolisHastings=true)
 
+#if(!masked) {m_bg ~ dnPhyloCTMCClado(tree = fbd_tree, Q = Q_DEC_epoch, rootFrequencies=rf_bg, cladoProbs=P_DEC, branchRates=clock_bg, nSites=1, type="NaturalNumbers")}
+#if(masked) m_bg ~ dnPhyloCTMCClado(tree = fbd_tree, Q = Q_DEC_epoch, rootFrequencies=rf_bg, cladoProbs=P_DEC, branchRates=clock_bg, nSites=1, type="Standard")
 
-if(!masked) {m_bg ~ dnPhyloCTMCClado(tree = fbd_tree, Q = Q_DEC_epoch, rootFrequencies=rf_bg, cladoProbs=P_DEC, branchRates=clock_bg, nSites=1, type="NaturalNumbers")}
+if(!masked) {m_bg ~ dnPhyloCTMCClado(tree = fbd_tree, Q = Q_DEC_epoch, rootFrequencies=rf_bg, cladoProbs=P_DEC,branchRates=clock_bg, nSites=1, type="NaturalNumbers")}
+if(masked) m_bg ~ dnPhyloCTMCClado(tree = fbd_tree, Q = Q_DEC_epoch, rootFrequencies=rf_bg, cladoProbs=P_DEC, branchRates=clock_bg, nSites=1, type="Standard")
 
-if(masked) {m_bg ~ dnPhyloCTMCClado(tree = fbd_tree, Q = Q_DEC_epoch, rootFrequencies=rf_bg, cladoProbs=P_DEC, branchRates=clock_bg, nSites=1, type="Standard")}
 
 m_bg.clamp(dat_bg_n)
 

@@ -12,8 +12,8 @@ cytb <- readDiscreteCharacterData(in_fp + mol_fn)
 
 intervals = readDataDelimitedFile(file=in_fp + intervals_fn, header=true)
 
-fbd_tree = readTrees("/Users/spiritusanti/Documents/1.PROYECTOS/5.TREE_FERNS/TREE_FERNS_v4/R_project/output_data/MCC_Master_Resolved.tre")[1]
-#treetrace = readTreeTrace(tree_init_fn, treetype="clock", burnin=0.0, thinning=1)
+if(fixed) fbd_tree = readTrees(mcctree,treetype="clock")[1]
+if(!fixed) treetrace = readTreeTrace(file=tree_init_fn,  burnin=0.0, thinning=1, separator="")
 
 
 max_areas = max_areas

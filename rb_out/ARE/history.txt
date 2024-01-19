@@ -1,0 +1,100 @@
+if (under_prior) job_str += ".under_prior"
+if (!use_biome) job_str += ".no_biome"
+if (!use_bg) job_str += ".no_bg"
+if (!use_epochs) job_str += ".no_epoch"
+if (n_biomes == 2) job_str += ".n_biomes_2"
+if (!use_stoch) job_str += ".no_stoch"
+fp = "/Users/spiritusanti/Documents/1.PROYECTOS/5.TREE_FERNS/TREE_FERNS_v4/R_project/rb_out/"
+in_fp = fp + "data/"
+code_fp = fp + "code/"
+if(!pruned) out_fp = fp + "output/"
+if(pruned) out_fp = fp + "output_pruned/"
+out_fn  = job_str
+if(!pruned) taxa_fn = "Master_taxa.tsv"
+if(pruned) taxa_fn = "Master_taxa_pruned.tsv"
+mol_fn = "Master_aln_v1.2.nex"
+intervals_fn = "Master_fossil_intervals.tsv"
+if(!pruned) tree_init_fn = "/Users/spiritusanti/Documents/1.PROYECTOS/5.TREE_FERNS/TREE_FERNS_v4/R_project/output_data/Master_Resolved_Const.trees"
+if(pruned) tree_init_fn = "/Users/spiritusanti/Documents/1.PROYECTOS/5.TREE_FERNS/TREE_FERNS_v4/R_project/output_data/Master_Pruned_Const.trees"
+if(!pruned) range_fn = "Master_range_8.nex"
+if(pruned) range_fn = "Master_range_8_pruned.nex"
+bg_times_fn = "Master.bg.times.txt"
+conn_fn = "Master.area_graph.n" + n_areas
+source("model_DATA.Rev")
+max_areas = max_areas
+n_states  = 0
+for (k in 0:max_areas) n_states += choose(n_areas, k)
+dat_bg_n <- readDiscreteCharacterData(file = in_fp + range_fn)
+dat_bg_n = formatDiscreteCharacterData(dat_bg_n, "DEC", n_states)
+in_fp + range_fn
+dat_bg_n
+n_states
+choose(n_areas, k)
+max_areas = max_areas
+n_states  = 0
+for (k in 0:max_areas) n_states += choose(n_areas, k)
+v
+max_areas = max_areas
+n_states  = 0
+for (k in 1:max_areas) n_states += choose(n_areas, k)
+n_states
+dat_bg_n
+source("model_DATA.Rev")
+q()
+graph_only = false
+use_biome = false
+use_bg = true
+use_mol = false
+do_fbd = false
+pruned = true
+use_stoch = true
+under_prior = false
+n_areas = 8
+n_biomes = 4
+max_areas = 2
+use_epochs = true
+# MCMC settings #
+n_gens = 1000
+n_burn = 500
+tune_freq = 10
+sample_freq = 10
+n_runs = 2
+mni = 1
+mvi = 1
+if (!exists("job_str")) job_str = "my_run.1"
+if (under_prior) job_str += ".under_prior"
+if (!use_biome) job_str += ".no_biome"
+if (!use_bg) job_str += ".no_bg"
+if (!use_epochs) job_str += ".no_epoch"
+if (n_biomes == 2) job_str += ".n_biomes_2"
+if (!use_stoch) job_str += ".no_stoch"
+# filepaths #
+fp = "/Users/spiritusanti/Documents/1.PROYECTOS/5.TREE_FERNS/TREE_FERNS_v4/R_project/rb_out/"
+in_fp = fp + "data/"
+code_fp = fp + "code/"
+if(!pruned) out_fp = fp + "output/"
+if(pruned) out_fp = fp + "output_pruned/"
+out_fn  = job_str
+# filenames #
+if(!pruned) taxa_fn = "Master_taxa.tsv"
+if(pruned) taxa_fn = "Master_taxa_pruned.tsv"
+mol_fn = "Master_aln_v1.2.nex"
+intervals_fn = "Master_fossil_intervals.tsv"
+if(!pruned) tree_init_fn = "/Users/spiritusanti/Documents/1.PROYECTOS/5.TREE_FERNS/TREE_FERNS_v4/R_project/output_data/Master_Resolved_Const.trees"
+if(pruned) tree_init_fn = "/Users/spiritusanti/Documents/1.PROYECTOS/5.TREE_FERNS/TREE_FERNS_v4/R_project/output_data/Master_Pruned_Const.trees"
+if(!pruned) range_fn = "Master_range_8.nex"
+if(pruned) range_fn = "Master_range_8_pruned.nex"
+bg_times_fn = "Master.bg.times.txt"
+conn_fn = "Master.area_graph.n" + n_areas
+source("model_DATA.Rev")
+source("model_biogeo.Rev")
+mymodel = model(m_bg)
+mn[mni++] = mnModel(filename=out_fp + out_fn + ".model.log", printgen= sample_freq)
+mn[mni++] = mnJointConditionalAncestralState(filename=out_fp+out_fn+".bg.states.txt", printgen=sample_freq,tree= fbd_tree, ctmc=m_bg, type="NaturalNumbers", withTips=true, withStartStates=true)
+mn[mni++] = mnScreen(printgen= sample_freq)
+mn[mni++] = mnFile(filename=out_fp + out_fn + ".trees", printgen= sample_freq, fbd_tree)
+if(use_stoch){ 
+mn[mni++] = mnStochasticCharacterMap(filename=out_fp+out_fn+".bg.stoch_map.txt", printgen=sample_freq,ctmc=m_bg)}
+mymodel.graph("Model_graph.txt")
+mymcmc = mcmc(mymodel, mn, mv, nruns = n_runs)
+mymcmc.run(generations=n_gens,underPrior= under_prior, checkpointInterval=500, checkpointFile = out_fp+out_fn+".state")

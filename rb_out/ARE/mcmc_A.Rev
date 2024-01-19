@@ -1,24 +1,38 @@
 ############
 # SETTINGS #
 ############      
-# Type of analyses #
+under_prior = true # run MCMC under prior
 
-graph_only = false
+# Set up the file naming system
+fp = "/Users/spiritusanti/Documents/1.PROYECTOS/5.TREE_FERNS/TREE_FERNS_v4/R_project/rb_out/" #path
+out_fp = fp + "output_full_prior/"
 use_biome = false
-use_bg = true
+use_bg = true 
+
+# Implement the full joint inference?
 use_mol = false
 do_fbd = false
-pruned = true
+
+# Use fossils (false) or only extant (true)
+pruned = false
+
+# Use a fixed tree (true) or sample from the posterior (false)
+fixed = false
+
+# Do stochastic character mapping?
 use_stoch = true
-under_prior = false
-n_areas = 3
+
+#####################
+# GLOBAL PARAMETERS #
+#####################
+n_areas = 8
 n_biomes = 4
 max_areas = 2
 use_epochs = true
-masked = true
+masked = false # this option only applies to n_areas = 3, and if true uses the coding scheme of wide-spread fossils
 
 # MCMC settings #
-n_gens = 2000
+n_gens = 5000
 n_burn = 500
 tune_freq = 10
 sample_freq = 10
@@ -26,9 +40,9 @@ n_runs = 1
 mni = 1
 mvi = 1
 
-#########
-# FILES #
-#########
+################
+# FILES SET UP #
+################
 if (!exists("job_str")) job_str = "my_run.1"
 if (under_prior) job_str += ".under_prior"
 if (!use_biome) job_str += ".no_biome"
@@ -37,16 +51,13 @@ if (!use_epochs) job_str += ".no_epoch"
 if (n_biomes == 2) job_str += ".n_biomes_2"
 if (!use_stoch) job_str += ".no_stoch"
 
-# filepaths #
-fp = "/Users/spiritusanti/Documents/1.PROYECTOS/5.TREE_FERNS/TREE_FERNS_v4/R_project/rb_out/"
 in_fp = fp + "data/"
 code_fp = fp + "code/"
-if(!pruned) out_fp = fp + "output/"
-if(pruned) out_fp = fp + "output_pruned/"
-if(masked) out_fp = fp + "output_masked/"
+#if(!pruned) out_fp = fp + "output/"
+#if(pruned) out_fp = fp + "output_pruned/"
+#if(masked) out_fp = fp + "output_masked/"
 out_fn  = job_str
 
-# filenames #
 if(!pruned) taxa_fn = "Master_taxa.tsv"
 if(pruned) taxa_fn = "Master_taxa_pruned.tsv"
 mol_fn = "Master_aln_v1.2.nex"
@@ -55,70 +66,63 @@ if(!pruned) tree_init_fn = "/Users/spiritusanti/Documents/1.PROYECTOS/5.TREE_FER
 if(pruned) tree_init_fn = "/Users/spiritusanti/Documents/1.PROYECTOS/5.TREE_FERNS/TREE_FERNS_v4/R_project/output_data/Master_Pruned_Const.trees"
 if(!pruned) range_fn = "Master_range_8.nex"
 if(pruned) range_fn = "Master_range_8_pruned.nex"
-if(masked) range_fn = "Master_range_8_KingsUnknown.nex"
+if(masked) range_fn = "Master_range_8_KingsWide.nex"
 bg_times_fn = "Master.bg.times.txt"
 if(!masked) conn_fn = "Master.area_graph.n" + n_areas
 if(masked) conn_fn = "Master.area_graph_Kings.n" + n_areas
+if(fixed) mcctree = "/Users/spiritusanti/Documents/1.PROYECTOS/5.TREE_FERNS/TREE_FERNS_v4/R_project/output_data/MCC_Master_Resolved.tre"
 
 #######################
 # Reading in the Data #
 #######################
 
-source("model_DATA.Rev")
+source(fp + "ARE/model_DATA.Rev")
 
-##############
-# Tree model #
-##############
+###########################################
+# Tree model, Clock & Substitution models #
+###########################################
+# Only read if running the full joint inference
 if(do_fbd) source("clades.Rev")
 if(do_fbd) source("model_FBDP_A.Rev")
-
-###############################
-# Clock & Substitution models #
-###############################
 if(do_fbd) source("model_UExp.Rev")
 if(do_fbd) source("model_GTR.Rev")
 
 ##########################
 # Range Evolution models #
 ##########################
-source("model_biogeo.Rev")
-
+source(fp + "ARE/model_biogeo.Rev")
 
 ########
 # MCMC #
 ########
 
-# initialize the model object #
 mymodel = model(m_bg)
-
-mymodel.graph("Model_graph.txt")
+#mymodel.graph("Model_graph2.txt")
 
 mn[mni++] = mnModel(filename=out_fp + out_fn + ".model.log", printgen= sample_freq)
 if(!masked) mn[mni++] = mnJointConditionalAncestralState(filename=out_fp+out_fn+".bg.states.txt", printgen=sample_freq,tree= fbd_tree, ctmc=m_bg, type="NaturalNumbers", withTips=true, withStartStates=true)
-if(masked) mn[mni++] = mnJointConditionalAncestralState(filename=out_fp+out_fn+".bg.states.txt", printgen=sample_freq,tree= fbd_tree, ctmc=m_bg, type="Standard", withTips=true, withStartStates=true)
+#if(masked) mn[mni++] = mnJointConditionalAncestralState(filename=out_fp+out_fn+".bg.states.txt", printgen=sample_freq,tree= fbd_tree, ctmc=m_bg, type="Standard", withTips=true, withStartStates=true)
 
 mn[mni++] = mnScreen(printgen= sample_freq)
-if (!masked) mn[mni++] = mnFile(filename=out_fp + out_fn + ".trees", printgen= sample_freq, fbd_tree)
-if(use_stoch){ 
-mn[mni++] = mnStochasticCharacterMap(filename=out_fp+out_fn+".bg.stoch_map.txt", printgen=sample_freq,ctmc=m_bg)}
+if (!fixed) mn[mni++] = mnFile(filename=out_fp + out_fn + ".trees", printgen= sample_freq, fbd_tree)
+if(use_stoch){mn[mni++] = mnStochasticCharacterMap(filename=out_fp+out_fn+".bg.stoch_map.txt", printgen=sample_freq,ctmc=m_bg)}
 
-
-# Initialize the MCMC object #
 mymcmc = mcmc(mymodel, mn, mv, nruns = n_runs)
 
 # Run the MCMC #
 #mymcmc.burnin(generations=n_burn, tuningInterval= tune_freq)
-mymcmc.run(generations=n_gens, underPrior= under_prior, checkpointInterval=500, checkpointFile = out_fp+out_fn+".state")
+#mymcmc.initializeFromCheckpoint("output_pruned_summ/my_run.1.no_biome.state")
+mymcmc.run(generations=n_gens, underPrior= under_prior, checkpointInterval = 500, checkpointFile = out_fp+out_fn+".state")
 q()
+#######################
+# SUMMARISING OUTPUTS #
+#######################
 
-##############
-##############
-##############
-
-#fn = "my_run.joint.no_biome"
+#fn = "my_run.joint.no_biome" # two or more runs
 fn = "my_run.1.no_biome" # one single run
 make_states = true
 pruned = false
+masked = false
 
 # Location of tree files
 if(pruned) out_fp = "output_pruned/"
@@ -136,7 +140,7 @@ if(!masked) state_tree_trace  = readTreeTrace(file= out_fp + fn, treetype="clock
 if(!masked) mcc_tree = mccTree(trace=state_tree_trace,file = out_fp + fn + ".mcc.tre", positiveBranchLengths=true)
 
 #if(!pruned) map_tree = readTrees(trace=state_tree_trace, treetype="clock")[1]
-if(masked) mcc_tree = readTrees("/Users/spiritusanti/Documents/1.PROYECTOS/5.TREE_FERNS/TREE_FERNS_v4/R_project/output_data/MCC_Master_Resolved.tre")[1]
+if(masked) mcc_tree = readTrees("/Users/spiritusanti/Documents/1.PROYECTOS/5.TREE_FERNS/TREE_FERNS_v4/R_project/rb_out/output_summ/my_run.1.no_biome.mcc.tre")[1]
 
 if (make_states) {
     print("--> Reading ancestral range estimate trace file")
