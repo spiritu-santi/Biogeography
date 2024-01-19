@@ -8,7 +8,7 @@ The repository follows the file system of the R project (R_project.Rproj). All d
 All plots and processing of output was performed in R; the core analyses were performed in RevBayes.  
 The script is fully functional, but some of the functions are not yet fully automated and may require additional input.
 
-- The 'inout_data' directory contains the data.  
+- The 'input_data' directory contains the data.  
 - The 'code' directory contains the R scripts.  
 - The 'rb_out' directory contains the RevBayes scripts.  
 
