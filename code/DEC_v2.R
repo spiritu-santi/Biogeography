@@ -1,30 +1,139 @@
 library(here)
-library(ggridges)
-library(ggdist)
-library("rnaturalearth")
-library("rnaturalearthdata")
-library(coda)
 library(tidyverse)
-require(ggplot2)
-library(furrr)
-library(purrr)
+library(magrittr)
 library(ape)
-library(rgdal)
-library(gginnards)
-library(plotrix)
-library(phytools)
-library(ape)
-library(treeio)
-library(viridis)
-library(patchwork)
 library(ggplot2)
 library(ggtree)
-library(ape)
-library(RevGadgets)
-library(data.table)
-library(cowplot)
-library(igraph)
+library(showtext)
+
+#### SAMPLED ANCESTOR RESOLVER FROM TRACE FILE PRODUCED BY REVBAYES ####
+#### The code is still very rough...... but it does the trick       ####
+#### This resolves sample ancestors on every single tree from the   ####
+#### posterior. A burn-in fraction can be specified (default zero). ####
+resolve_sampancestors <- function(trace_file = here("output_data/MCC_Master.tre"),taxa_file = here("rb_out/data/Master_taxa.tsv"),output = here("output_data/MCC_Master_Resolved.tre"),branch_length = 0.00001,burn.in=0){
+  a <- data.table::fread(trace_file,header = T,sep = "\t")
+  f_burn = burn.in * dim(a)[1]
+  if (burn.in == 0) f_burn = 1
+  a <-a[f_burn:dim(a)[1],]
+  b <- read.table(taxa_file,header=T)
+  taxa <-  as.character(b$taxon)
+  # Identifying which taxa are sampled ancestors in each tree in trace
+  res <- list()
+  cat("Identifying sampled ancestors on",dim(a)[1],"trees","\n")
+  res <- lapply(a$fbd_tree,function(j) unlist(lapply(taxa,function(x) length(grep(paste("\\)",x,sep=""),j)))))
+  taxas <- lapply(res,function(x) cbind(as.character(taxa),x))
+  cat("        ---- Indexing","\n")
+  index <- lapply(a$fbd_tree,function(x) strsplit(x,"&index="))
+  index_2 <- sapply(index,function(y)sapply(y,function(x) sub(']:.*', '', x)))
+  max_index <- unlist(lapply(index_2,function(x) max(as.numeric(x[-1]))))
+  indices <- lapply(index_2, function(x) setdiff(1:unique(max_index), as.numeric(x[-1,])))
+  
+  # Edit the tree string to resolve sampled ancestors for each tree in trace
+  counter <- length(taxas)
+  cat("Resolving sampled ancestors","\n")
+  for (k in 1:length(taxas)){
+    counter <- counter - 1
+    cat("Remaining trees to process:",counter,"\r")
+    taxa <- taxas[[k]]
+    if(length(which(taxa[,2]==1)) == 0) next
+    taxa <- taxa[which(taxa[,2]==1),]
+    if (is.null(dim(taxa)[1])){ 
+      grep(taxa[1],a$fbd_tree[k],fixed=T)
+      yy <- unlist(strsplit(a$fbd_tree[k],"]:"))
+      zz <- yy[grep(paste(taxa[1],"[&",sep=""),yy,fixed=T)]
+      zzz <- sub(")",",",zz)
+      aa <- sub(paste('.*',taxa[1],sep=""),"",zzz)
+      #if(length(paste(")",taxa[1],aa,"]",sep=""))>1) break ## probably not necessary (but I got a weird warning at some point)
+      #if(paste(",",taxa[1],aa,"]:",branch_length,")",sep="")>1) break ## probably not necessary (but I got a weird warning at some point)
+      a$fbd_tree[k] <- sub(paste(")",taxa[1],aa,"]",sep=""), paste(",",taxa[1],aa,"]:",branch_length,")","[&index=",indices[[k]][1],"]",sep=""),  a$fbd_tree[k],fixed=T)
+    } else {
+      dimas = dim(taxa)[1]
+      for (i in 1:dimas){ 
+        grep(taxa[i,1],a$fbd_tree[k],fixed=T)
+        yy <- unlist(strsplit(a$fbd_tree[k],"]:"))
+        zz <- yy[grep(paste(taxa[i,1],"[&",sep=""),yy,fixed=T)]
+        zzz <- sub(")",",",zz)
+        aa <- sub(paste('.*',taxa[i,1],sep=""),"",zzz)
+        #if(length(paste(")",taxa[i,1],aa,"]",sep=""))>1) break ## probably not necessary (but I got a weird warning at some point)
+        #if(paste(",",taxa[i,1],aa,"]:",branch_length,")",sep="")>1) break ## probably not necessary (but I got a weird warning at some point)
+        a$fbd_tree[k] <- sub(paste(")",taxa[i,1],aa,"]",sep=""), paste(",",taxa[i,1],aa,"]:",branch_length,")","[&index=",indices[[k]][i],"]",sep=""),  a$fbd_tree[k],fixed=T)
+        #sub(paste(")",taxa[i,1],aa,"]",sep=""), paste(",",taxa[i,1],aa,"]:",branch_length,")","[&index=",indices[[k]][i],"]",sep=""), a$fbd_tree[k],fixed=T)
+        
+      }
+    }
+    
+  }
+  write.table(a,file=output,quote = F,col.names = T,row.names = F,sep = "\t")
+}
+#### This is executed prior to the ASE analyses on the full data set ####
+#### For the pruned trees, this is unnecessary.                      ####
+#### Filter trees from posterior sample that match the family-level backbone topology from the RAxML phylogeny
+#### This is necessary  to sample trees from the posterior during the ASE analyses: trees with a weird topology are favored during the reconstruction, which is not correct ####
+filter_trees <- function(target_tree="output_data/MCC_Master_Pruned.tre",trees="output_data/Master_Resolved.trees",output="output_data/Master_Resolved_Const.trees"){ 
+  backbone <- ape::read.nexus(here(target_tree))
+  iden <- which(backbone$tip.label %in% c("Plagiogyria_stenoptera",
+                                          "Culcita_coniifolia","Loxsoma_cunninghamii" ,"Cibotium_regale" ,
+                                          "Dicksonia_gigantea","Sphaeropteris_glauca", "Thyrsopteris_elegans", "Metaxya_rostrata"))
+  backbone.p <- drop.tip(backbone,tip =backbone$tip.label[-iden] )
+  comparison <- list()
+  a <- data.table::fread(here(trees),header = T,sep = "\t")
+  burn.in = 0
+  f_burn = burn.in * dim(a)[1]
+  if (burn.in == 0) f_burn = 1
+  a <-a[f_burn:dim(a)[1],]
+  tipas <- c("Plagiogyria_stenoptera","Culcita_coniifolia","Loxsoma_cunninghamii" ,
+             "Cibotium_regale" ,"Dicksonia_gigantea","Sphaeropteris_glauca", "Thyrsopteris_elegans", "Metaxya_rostrata")
+  master_compare <- 1:dim(a)[1] %>% future_map_lgl(function(lis){
+    r1 <- a$fbd_tree[lis] %>% ape::read.tree(text = .) 
+    r2 <- which(r1$tip.label %in% tipas) 
+    r3  <- ape::drop.tip(phy = r1, tip = r1$tip.label[-r2])  %>% all.equal.phylo(backbone.p,.,use.edge.length=FALSE)
+    return(r3)
+  },.progress = TRUE)
+  master_compare
+  table(unlist(master_compare))
+  write.table(a[which(unlist(master_compare)),],file=here(output),quote = F,col.names = T,row.names = F,sep = "\t")
+}
+
+#### MAKE JOINT FILES FROM  MULTIPLE RUNS OF ASE ####
+#### This is executed prior to summarizing the ASE results ####
+## NOTE TO SELF: Need to be tidy (december 2023)
+setwd("~/Documents/6.SCRIPTS/RevBayes_TrialRun/output/")
+a <- data.table::fread("my_run.1.no_biome_run_1.trees",header = T,sep = "\t")
+burn <- max(a$Iteration) * 0.8
+a <- a[-c(1:which(a$Iteration==burn)),]
+b <- data.table::fread("my_run.1.no_biome_run_2.trees",header = T,sep = "\t")
+burn <- max(b$Iteration) *0.8
+b <- b[-c(1:which(b$Iteration==burn)),]
+joint <- rbind(a,b)
+dim(joint)
+joint$Iteration <- seq(10,dim(a)[1]*2*10,10)
+write.table(joint,file="my_run.joint.no_biome.trees",quote = F,col.names = T,row.names = F,sep = "\t")
+
+a <- data.table::fread("my_run.1.no_biome.bg.states_run_1.txt",header = T,sep = "\t")
+burn <- max(a$Iteration) * 0.5
+a <- a[-c(1:which(a$Iteration==burn)),]
+b <- data.table::fread("my_run.1.no_biome.bg.states_run_2.txt",header = T,sep = "\t")
+burn <- max(b$Iteration) * 0.5
+b <- b[-c(1:which(b$Iteration==burn)),]
+joint <- rbind(a,b)
+dim(joint)
+joint$Iteration <- seq(10,dim(a)[1]*2*10,10)
+write.table(joint,file="my_run.joint.no_biome.bg.states.txt",quote = F,col.names = T,row.names = F,sep = "\t")
+
+a <- data.table::fread("my_run.1.no_biome.bg.stoch_map_run_1.txt",header = T,sep = "\t")
+burn <- max(a$Iteration) * 0.5
+a <- a[-c(1:which(a$Iteration==burn)),]
+b <- data.table::fread("my_run.1.no_biome.bg.stoch_map_run_2.txt",header = T,sep = "\t")
+burn <- max(b$Iteration) * 0.5
+b <- b[-c(1:which(b$Iteration==burn)),]
+joint <- rbind(a,b)
+dim(joint)
+joint$Iteration <- seq(10,dim(a)[1]*2*10,10)
+write.table(joint,file="my_run.joint.no_biome.bg.stoch_map.txt",quote = F,col.names = T,row.names = F,sep = "\t")
+
 ######## UTILITIES ######
+font_add_google(name="EB Garamond")
+showtext_auto()
 add_epoch_times <- function( p, dy_bars, dy_text ) {
   
   max_x = max(p$data$x)
@@ -45,8 +154,9 @@ add_epoch_times <- function( p, dy_bars, dy_text ) {
     # box_col = "gray92"
     #  if (k %% 2 == 0) box_col = "white"
     box = geom_rect( xmin=x_pos[k-1], xmax=x_pos[k], ymin=dy_bars, ymax=dy_bars+8, fill= box_col[k] )
-    p = append_layers(p, box, position = "bottom")
-  }
+    p = gginnards::append_layers(p, box, position = "bottom")
+  
+    }
   for (k in 1:length(epoch_names)) {
     p = p + annotate( geom="text", label=epoch_names[k], x=x_pos_mid[k], y=dy_text, hjust=0.5, size=3.25)
   }
@@ -82,7 +192,6 @@ inset.revgadgets = function (tree_view, insets, width = 0.1, height = 0.1, hjust
   # return treeview with subviews
   return(tree_view)
 }
-
 # modified from https://github.com/GuangchuangYu/ggtree/blob/master/R/tree-utilities.R
 getXcoord2 <- function(x, root, parent, child, len, start=0, rev=FALSE) {
   x[root] <- start
@@ -363,11 +472,13 @@ collect_probable_states = function(p, p_threshold=0.01){
   return(codes)
 }
 
+#### Functions ####
+## Plot Ancestral State Reconstruction: tree fern clades hard coded into the function ##
 do_ARR_plot <- function(ase.tre = ase.tre, states_file = states_file,tree_layout = "rectangular",tip_pie_diameter=20,node_pie_diameter=20,title=title,output=output,save,burn.in,drop.tips=TRUE, out_probes_nodes,out_probs_full){
-  t <- read.beast(ase.tre)
+  t <- treeio::read.beast(ase.tre)
   if(drop.tips) { 
     taxa <- read.table(here("rb_out/data/Master_taxa.tsv"),header=T) %>% filter(age!=0) %>% pull(taxon)
-    t <- drop.tip(t,tip=taxa)
+    t <- treeio::drop.tip(t,tip=taxa)
   }
   state <- read.table(states_file,sep="\t",header=T,stringsAsFactors = F);(state)
   state_labels <- state$state_label
@@ -382,40 +493,37 @@ do_ARR_plot <- function(ase.tre = ase.tre, states_file = states_file,tree_layout
   if (!is.null(state_colors) && !is.null(state_labels)) {names(state_colors) = state_labels}
   tree = attributes(t)$phylo
   n_node = ggtree:::getNodeNum(tree)
-  fams <- getMRCA(t@phylo,tip=c("Cyathea_myosuroides","Sphaeropteris_horrida"))
-  fams <- c(fams, getMRCA(t@phylo,tip=c("Dicksonia_lanata","Lophosoria_quadripinnata")))
-  fams <- c(fams, getMRCA(t@phylo,tip=c("Cibotium_chamissoi","Cibotium_barometz")))
-  fams <- c(fams, getMRCA(t@phylo,tip=c("Metaxya_rostrata","Metaxya_scalaris")))
-  fams <- c(fams, getMRCA(t@phylo,tip=c("Plagiogyria_japonica","Plagiogyria_pectinata")))
-  fams <- c(fams, getMRCA(t@phylo,tip=c("Culcita_macrocarpa","Culcita_coniifolia")))
-  fams <- c(fams, getMRCA(t@phylo,tip=c("Loxsoma_cunninghamii","Loxsomopsis_pearcei")))
-  fams <- c(fams, getMRCA(t@phylo,tip=c("Cyathea_myosuroides","Cibotium_barometz")))
-  fams <- c(fams, getMRCA(t@phylo,tip=c("Plagiogyria_japonica","Thyrsopteris_elegans")))
-  fams <- c(fams, getMRCA(t@phylo,tip=c("Cyathea_myosuroides","Thyrsopteris_elegans")))
-  
-  t@data %>% slice(c(fams)) %>% 
+  fams <- getMRCA(tree,tip=c("Cyathea_myosuroides","Sphaeropteris_horrida"))
+  fams <- c(fams, getMRCA(tree,tip=c("Dicksonia_lanata","Lophosoria_quadripinnata")))
+  fams <- c(fams, getMRCA(tree,tip=c("Cibotium_chamissoi","Cibotium_barometz")))
+  fams <- c(fams, getMRCA(tree,tip=c("Metaxya_rostrata","Metaxya_scalaris")))
+  fams <- c(fams, getMRCA(tree,tip=c("Plagiogyria_japonica","Plagiogyria_pectinata")))
+  fams <- c(fams, getMRCA(tree,tip=c("Culcita_macrocarpa","Culcita_coniifolia")))
+  fams <- c(fams, getMRCA(tree,tip=c("Loxsoma_cunninghamii","Loxsomopsis_pearcei")))
+  fams <- c(fams, getMRCA(tree,tip=c("Cyathea_myosuroides","Cibotium_barometz")))
+  fams <- c(fams, getMRCA(tree,tip=c("Plagiogyria_japonica","Thyrsopteris_elegans")))
+  fams <- c(fams, getMRCA(tree,tip=c("Cyathea_myosuroides","Thyrsopteris_elegans")))
+
+t@data %>% slice(c(fams)) %>% 
+    #filter(index %in% fams) %>% 
     mutate(Clade = c(
     "Cyatheaceae","Dicksoniaceae","Cibotiaceae","Metaxyaceae","Plagiogyriaceae","Culcitaceae","Loxomataceae","CDC","PCLT","Cyatheales"
   ),.before=1
   ) %>% select(1:7) %>% pivot_longer(cols = ends_with("pp"),names_to = "var",values_to = "val") %>% 
     select(Clade,var,val) -> probs
-  probs
   
-  t@data %>% slice(c(fams)) %>% mutate(Clade = c(
+t@data %>% slice(c(fams)) %>% 
+    #filter(index %in% fams) %>% 
+    mutate(Clade = c(
     "Cyatheaceae","Dicksoniaceae","Cibotiaceae","Metaxyaceae","Plagiogyriaceae","Culcitaceae","Loxomataceae","CDC","PCLT","Cyatheales"
   ),.before=1
   ) %>% select(1:7) %>% pivot_longer(cols = c("end_state_1","end_state_2","end_state_3"),names_to = "var",values_to = "area") %>% select(Clade,var,area) -> areas
-  
-  probs %>% mutate(var=sub("_pp$","",var)) %>% left_join(.,areas,by=c("Clade","var")) %>% mutate(val=as.numeric(val)) %>% 
-    ggplot(aes(y=Clade,x=val,fill=area,group=desc(var))) +
-    geom_bar(position="dodge",stat="identity") +
-    #scale_fill_manual(values=c("#A2D7DE","#F6A756","#D4E1CB","#2E5B87","#A2D7DE","#FFD47E","#FFD47E","#1E466E","#A2D7DE","#D4E1CB","#EC7B4B","#FFD47E","NA")) + 
-      NULL
-  
-  probs %>% mutate(var=sub("_pp$","",var)) %>% left_join(.,areas,by=c("Clade","var")) %>% mutate(val=as.numeric(val)) %>% write.table(.,file=out_probes_nodes,quote = TRUE,row.names = FALSE,col.names = TRUE,sep=",")
+
+probs %<% mutate(var=sub("_pp$","",var)) %>% left_join(.,areas,by=c("Clade","var")) %>% mutate(val=as.numeric(val)) %>% write.table(.,file=out_probes_nodes,quote = TRUE,row.names = FALSE,col.names = TRUE,sep=",")
 t@data %>% save(.,file=out_probs_full)
-  
-  p = ggtree::ggtree(t, layout=tree_layout, ladderize=TRUE)
+
+
+p = ggtree(t, layout=tree_layout, ladderize=TRUE)
 # p = p + geom_tiplab(size=1, offset=0.03)
   p = p + geom_tippoint(aes(colour=factor(end_state_1)), size=0, alpha=1) 
   p = p + geom_nodepoint(aes(colour=factor(start_state_1), size=0),na.rm=TRUE, alpha=0)
@@ -450,20 +558,80 @@ t@data %>% save(.,file=out_probs_full)
   cat("Plotting ancestral states: stage 3","\n")
   p_shld = p_shld + ggtitle(title)
   p_shld <- add_epoch_times(p_shld, dy_bars=-10, dy_text=-10)
-  if (save==TRUE) ggsave(p_shld,file=output,width=16,height=14,units="in")
-  #p_all = p_shld + coord_cartesian(xlim = c(0,300), ylim=NULL, expand=TRUE)
-  #p_all
-  #p2 = p_shld + scale_color_manual(values=state_colors, breaks=as.vector(state_labels),limits = used_states[c(1:8,10,11,16,19,20)])
-  #p2 = p2 + scale_radius(range = c(15,20))
-  #p2 = p2 + theme(legend.position="left")
-  # show title
-  #p2 = p2 + ggtitle("Cyatheales")
-  # set visible area
-  #p2 = p2 + coord_cartesian(xlim = c(0,280), ylim = NULL, expand=TRUE)
-  #p2 = add_epoch_times(p2, 280,  dy_bars=-10, dy_text=-10)
-  #ggsave(p2,file="~/Desktop/ARR_full_mcc_2.pdf")
+  if (save==TRUE) {
+    ggsave(p_shld,file=output,width=16,height=14,units="in")
+  }
+}
+# Run the function to get the annotated tree
+do_ARR_plot(ase.tre = "rb_out/output_summ/my_run.1.no_biome.bg.ase.tre",states_file="input_data/AreaCodes_n8_2.tsv",title = "Cyatheales_ARR_trace" ,output = "plots/ARR_Full.pdf" ,
+out_probes_nodes="output_data/probsNodes_Full.csv",
+out_probs_full = "output_data/probs_Full.RData",tree_layout = "rectangular",tip_pie_diameter = 5,node_pie_diameter = 5,save=TRUE,burn.in = 0.0,drop.tips=TRUE)
+
+# Bar plot of state probabilities for selected nodes (NOTE: hard coded into the 'do_ARR_plot' function). This is a very basic ggplot (need to customize colors, labels, etc.)
+plot_probs_full <- function(out_probes_nodes="output_data/probsNodes_Full.csv") {read.table(out_probes_nodes,sep=",",header=TRUE) %>% as_tibble() %>% 
+    ggplot(aes(y=Clade,x=val,fill=area,group=desc(var))) +
+    geom_bar(position="dodge",stat="identity") +
+    NULL
+}
+## ##
+
+plot_probs.kingdoms <- function( ){ 
+  data.known = "output_data/probsNodes_KingsKnown.csv"
+  data.unknown = "output_data/probsNodes_KingsUnknown.csv"
+  data.uncertain = "output_data/probsNodes_KingsUncertain.csv"
+  data.wide = "output_data/probsNodes_KingsWide.csv"
+  
+  label.1 = "Known"
+  label.2 = "Unknown"
+  label.3 = "Uncertain"
+  label.4 = "Wide"
+  fread(data.known) %>% as_tibble() %>% mutate(Dataset = label.1) -> probs
+  fread(data.unknown) %>% as_tibble() %>% mutate(Dataset = label.2) %>%  bind_rows(probs,.) -> probs
+  fread(data.uncertain) %>% as_tibble() %>% mutate(Dataset = label.3) %>%  bind_rows(probs,.) -> probs
+  fread(data.wide) %>% as_tibble() %>% mutate(Dataset = label.4) %>%  bind_rows(probs,.) -> probs
+  
+  probs %>% pivot_wider(names_from = Dataset,values_from = val) %>% filter(var=="end_state_1") %>% 
+    filter(!is.na(area)) %>% mutate(across(Known:Wide, replace_na,0)) %>% 
+    rename_with(~sub(" ","_",.x)) %>% rowwise() %>% 
+    mutate(mean = mean(c_across(Known:Wide))) %>% 
+    mutate(max = max(c_across(Known:Wide))) %>% 
+    mutate(min = min(c_across(Known:Wide))) %>% 
+    mutate(Clade=factor(Clade,levels = c(
+      "Cyatheaceae" ,"Dicksoniaceae","Cibotiaceae",
+      "Metaxyaceae","Plagiogyriaceae","Culcitaceae",
+      "Loxomataceae","CDC","PCLT","Cyatheales") )) %>% 
+    filter(Known!=0) %>% 
+    ggplot(aes(x=min,y=Clade,yend=Clade,xend=max)) +
+    geom_segment(lwd=1,color=MetBrewer::met.brewer("Demuth",n=10)[10]) +
+    geom_point(aes(x=Known,y=Clade),fill=MetBrewer::met.brewer("Demuth",n=10)[1],size=4,shape=21) +
+    geom_point(aes(x=Uncertain,y=Clade),fill=MetBrewer::met.brewer("Demuth",n=10)[3],size=4,shape=21) +
+    geom_point(aes(x=Unknown,y=Clade),fill=MetBrewer::met.brewer("Demuth",n=10)[5],size=4,shape=21) +
+    geom_point(aes(x=Wide,y=Clade),fill=MetBrewer::met.brewer("Demuth",n=10)[7],size=4,shape=21) +
+    theme(panel.background = element_blank(),
+          panel.grid=element_blank(),
+          axis.line=element_line(),
+          axis.title.y = element_blank(),
+          axis.ticks.y=element_blank()) +
+    labs(x="State probability") +
+    #coord_cartesian(xlim=c(0.5,1)) +
+    #facet_wrap(~var,scales = "free") +
+    geom_text(aes(x=Known),label="Known",y=1:10 - 0.3,
+              hjust=.8,size=2,color=MetBrewer::met.brewer("Demuth",n=10)[1]) +
+    geom_text(aes(x=Uncertain),label="Unnown",y=1:10 - 0.3,
+              hjust=.8,size=2,color=MetBrewer::met.brewer("Demuth",n=10)[3]) +
+    geom_text(aes(x=Unknown),label="Uncertain",y=1:10 - 0.3,
+              hjust=.8,size=2,color=MetBrewer::met.brewer("Demuth",n=10)[5]) +
+    geom_text(aes(x=Wide),label="Wide",y=1:10 - 0.3,
+              hjust=.8,size=2,color=MetBrewer::met.brewer("Demuth",n=10)[7]) +
+    geom_text(aes(label=area,x=mean),y = 1:10 - 0.4,hjust=.8) +
+    NULL
 }
 
+#ggsave2(plot = p_shld,filename = "plots/ARR_trace_pruned_ASE_july.pdf", height = 10,  width = 10)
+#ggsave2(plot = p3,filename = "plots/ARR_trace_full_STT_july.pdf", height = 10,  width = 10)
+#ggsave2(plot = p_shld / p3,filename = "plots/ARR_trace_full.pdf", height = 10,  width = 10)
+
+## Estimate State Frequency through Time plots using the original code from Landis et al. 
 do_STT_plot <- function(stoch, area.codes,n.areas,max.time,burn.in,support_plot,save,output=output,correct=TRUE){
   bg_colors  = read.csv(area.codes,sep="\t",header=T)
   bg_names = bg_colors$state_label[1:n.areas]
@@ -489,7 +657,7 @@ do_STT_plot <- function(stoch, area.codes,n.areas,max.time,burn.in,support_plot,
     if(n_areas == 8) {nodes <- c(1085,1084,1083,1082,1081,1080,1079,3,4,5,6,10,11,23) } #full
     if(n_areas == 3) {nodes <- c(1085,1084,1083,1082,1081,1080,1079,1,2,3,4,5,6,7) }#kings
     stoch_bg <- stoch_bg[!stoch_bg$node_index %in% nodes,]
-    }
+  }
   #stoch_bg     = stoch_bg[ stoch_bg$transition_type != "cladogenetic", ]
   # filter out non-events
   stoch_bg$transition_time[ stoch_bg$transition_type=="no_change" ] = stoch_bg$branch_start_time[ stoch_bg$transition_type=="no_change" ]
@@ -550,7 +718,7 @@ do_STT_plot <- function(stoch, area.codes,n.areas,max.time,burn.in,support_plot,
     # cat("Stage 2: create time-binned bg occupancies, processing iteration ",nrow(stoch_bg_biome)," / ", max(nrow(stoch_bg_biome)), "\n", sep="")
     if (curr_it != stoch_bg_biome$iteration[i]) {
       curr_it = stoch_bg_biome$iteration[i]
-cat("Stage 2: create time-binned bg occupancies, processing iteration ",curr_it," / ", max(stoch_bg_biome$iteration), "\n", sep="")
+      cat("Stage 2: create time-binned bg occupancies, processing iteration ",curr_it," / ", max(stoch_bg_biome$iteration), "\n", sep="")
     }
     bg_idx = states[[i]]
     #age_bins = seq(floor(stoch_bg_biome$x2[i]), ceiling(stoch_bg_biome$x1[i]), by=bin_width ) / bin_width
@@ -572,13 +740,13 @@ cat("Stage 2: create time-binned bg occupancies, processing iteration ",curr_it,
       }
     }
     state_bins[ bg_idx,1, time_idx ] = state_bins[ bg_idx,1, time_idx ] + 1
-  
     
-    }
+    
+  }
   
   dat_plot_tmp = do.call(rbind,dat_plot_tmp)
   dat_plot = rbind(dat_plot, dat_plot_tmp)
-
+  
   # Stage 3: create plotting table
   cat("Stage 3: plotting....... ", "\n", sep="")
   min_sample = calculate_ske(s=Inf,k=n_states,alpha=alpha_tol,D=D_tol)$n
@@ -651,11 +819,11 @@ cat("Stage 2: create time-binned bg occupancies, processing iteration ",curr_it,
   #ret$biome = d2_biome_trunc
   
   plot_dat = ret
- save(plot_dat,file=here(output))
+  save(plot_dat,file=here(output))
+  
+}
 
- }
-
-STT_plot_2  <- function(data_full="output_data/HistoryTable_full_corrected_v2.RData", data_pruned="output_data/HistoryTable_KingsWide_corrected_v2.RData",palette="Hiroshige",n_colors=3,support=TRUE,save=TRUE,output="plots/STT_kings_comp2.pdf",label.1 = "unknown",label.2 = "wide"){
+STT_plot_2  <- function(data_full="output_data/HistoryTable_full_corrected_v2.RData", data_pruned="output_data/HistoryTable_pruned_v2.RData",palette="Hiroshige",n_colors=8,support=TRUE,save=TRUE,output="plots/STT_comp2.pdf",label.1 = "unknown",label.2 = "wide"){
   load(here(data_full))
   plot_dat_full = plot_dat$bg
   load(here(data_pruned))
@@ -715,6 +883,8 @@ STT_plot_2  <- function(data_full="output_data/HistoryTable_full_corrected_v2.RD
   if (save==TRUE) ggsave(stt,file=output,width=14,height=8,units="in")
 }
 
+## Estimate number of dispersal and extinction events.
+## A correction is performed (correct = TRUE) to prune a stem lineage of Cyatheales.
 estimate_events <- function( bg_fn  = "rb_out/output_summ/my_run.1.no_biome.history.tsv",
                              col_bg_fn    = "input_data/AreaCodes_n8_2.tsv",
                              n_areas = 8, 
@@ -777,7 +947,7 @@ estimate_events <- function( bg_fn  = "rb_out/output_summ/my_run.1.no_biome.hist
     geom_vline(xintercept = 0) +
     NULL
   
-  tib_coords <- tibble(Area=bg_colors$state_label[1:8],
+tib_coords <- tibble(Area=bg_colors$state_label[1:8],
                        Dispers_into=bg_colors$state_label[1:8],
                        From_x=c(-104,-60,0,40,25,112,145,78),From_y=c(25,-20,-80,60,-10,28,-30,10),
                        To_x=c(-104,-60,0,40,25,112,145,78),To_y=c(25,-20,-80,60,-10,28,-30,10))
@@ -788,7 +958,7 @@ estimate_events <- function( bg_fn  = "rb_out/output_summ/my_run.1.no_biome.hist
     left_join(.,tib_coords %>% select(2,5,6),by="Dispers_into")
   
   ggplot() +
-    geom_sf(data=ne_countries(scale=110,returnclass = "sf",type="countries"),colour="grey95",fill="grey95",size=0.5) +
+    geom_sf(data=rnaturalearth::ne_countries(scale=110,returnclass = "sf",type="countries"),colour="grey95",fill="grey95",size=0.5) +
     geom_point(data=tib_coords,aes(x=From_x,y=From_y)) + 
     geom_curve(data = to_map %>% filter(n >= 1) %>% mutate(n_std = (n - min(n))/(max(n)-min(n)),.after=n),aes(x=From_x,y=From_y,xend=To_x,yend=To_y,color=n_std),curvature = 0.1,arrow = arrow(ends = "last",type="open",length = unit(0.1, "inches")))  +
     scale_size(range=c(0,1),guide = "none" )  + 
@@ -796,7 +966,8 @@ estimate_events <- function( bg_fn  = "rb_out/output_summ/my_run.1.no_biome.hist
     theme(panel.background = element_blank(),panel.grid = element_blank()) +
     NULL
   
-  to_map  %>%  select(1:3) %>% mutate(n = round(n,3)) %>% flextable::flextable() %>% flextable::save_as_docx(path=here("output_data/dispersals_full.docx"))
+to_map  %>%  select(1:3) %>% mutate(n = round(n,3)) %>% flextable::flextable() %>% 
+  flextable::save_as_docx(path=here("output_data/dispersals_full.docx"))
   
   stoch_bg %>% as_tibble() %>% filter(transition_type==trans_type) %>% filter(start_state%in%c(9:36)) %>% rowwise() %>% 
     mutate(Area_1 = get_bg_state_2(start_state)[1],Area_2 = get_bg_state_2(start_state)[2],.after=start_state) %>% ungroup() %>%
@@ -825,7 +996,7 @@ estimate_events <- function( bg_fn  = "rb_out/output_summ/my_run.1.no_biome.hist
     NULL
   
   extirps %>% mutate(Extirp_area = ifelse(end_state==Area_1,Area_2,Area_1),.before=node_index)  %>% select(-starts_with("branch"),-starts_with("child")) %>% 
-    mutate(After =  ifelse(Extirp_area %in% c(2,3,5,7,8),"Gondwana","Laurasia"),.before=node_index) %>% 
+    mutate(After =  ifelse(Extirp_area %in% c(2,3,5,7,8),"Gondwana","Laurasia"),.before=node_index) %>%
     mutate(Extirp_area = fct_relabel(factor(Extirp_area),~ bg_colors$state_label[1:8]),.before = node_index) %>% 
     mutate(Before = ifelse(start_state %in% c(9,10,13:15,18,20,21,23,24,27,29,30,33,35),"Inter",After),.before=node_index) %>% 
     mutate(Event = paste0(After,"_",Before),.after=Before) %>% 
@@ -851,10 +1022,13 @@ estimate_events <- function( bg_fn  = "rb_out/output_summ/my_run.1.no_biome.hist
           legend.key.size = unit(0.6,"cm"),
           plot.title = element_text(family="EB Garamond",face="bold",size=18,hjust = 0.5),plot.subtitle = element_text(family="EB Garamond",size=12,hjust = 0.5),legend.direction="vertical") +
     NULL
-  
-  
 }
 
+
+
+
+
+## This function is deprecated in favour of 'estimate_events'
 do_network_map <- function(bg_fn= "rb_out/output_pruned_summ/my_run.1.no_biome.history.tsv",
                            col_bg_fn    = "input_data/AreaCodes_n8_2.tsv",n_areas  = 8,time_slice=NULL,max_min="min",f_burn = 0.0,
                            type_trans = c("anagenetic"),bin_width  = 1,correct = FALSE){
@@ -1045,59 +1219,8 @@ do_network_map <- function(bg_fn= "rb_out/output_pruned_summ/my_run.1.no_biome.h
   
 }
 
-plot_probs <- function( ){ 
-data.known = "output_data/probsNodes_KingsKnown.csv"
-data.unknown = "output_data/probsNodes_KingsUnknown.csv"
-data.uncertain = "output_data/probsNodes_KingsUncertain.csv"
-data.wide = "output_data/probsNodes_KingsWide.csv"
 
-label.1 = "Known"
-label.2 = "Unknown"
-label.3 = "Uncertain"
-label.4 = "Wide"
-fread(data.known) %>% as_tibble() %>% mutate(Dataset = label.1) -> probs
-fread(data.unknown) %>% as_tibble() %>% mutate(Dataset = label.2) %>%  bind_rows(probs,.) -> probs
-fread(data.uncertain) %>% as_tibble() %>% mutate(Dataset = label.3) %>%  bind_rows(probs,.) -> probs
-fread(data.wide) %>% as_tibble() %>% mutate(Dataset = label.4) %>%  bind_rows(probs,.) -> probs
-
-probs %>% pivot_wider(names_from = Dataset,values_from = val) %>% filter(var=="end_state_1") %>% 
-  filter(!is.na(area)) %>% mutate(across(Known:Wide, replace_na,0)) %>% 
-  rename_with(~sub(" ","_",.x)) %>% rowwise() %>% 
-  mutate(mean = mean(c_across(Known:Wide))) %>% 
-  mutate(max = max(c_across(Known:Wide))) %>% 
-  mutate(min = min(c_across(Known:Wide))) %>% 
-  mutate(Clade=factor(Clade,levels = c(
-    "Cyatheaceae" ,"Dicksoniaceae","Cibotiaceae",
-    "Metaxyaceae","Plagiogyriaceae","Culcitaceae",
-    "Loxomataceae","CDC","PCLT","Cyatheales") )) %>% 
-  filter(Known!=0) %>% 
-ggplot(aes(x=min,y=Clade,yend=Clade,xend=max)) +
-  geom_segment(lwd=1,color=MetBrewer::met.brewer("Demuth",n=10)[10]) +
-  geom_point(aes(x=Known,y=Clade),fill=MetBrewer::met.brewer("Demuth",n=10)[1],size=4,shape=21) +
-  geom_point(aes(x=Uncertain,y=Clade),fill=MetBrewer::met.brewer("Demuth",n=10)[3],size=4,shape=21) +
-  geom_point(aes(x=Unknown,y=Clade),fill=MetBrewer::met.brewer("Demuth",n=10)[5],size=4,shape=21) +
-  geom_point(aes(x=Wide,y=Clade),fill=MetBrewer::met.brewer("Demuth",n=10)[7],size=4,shape=21) +
-  theme(panel.background = element_blank(),
-        panel.grid=element_blank(),
-        axis.line=element_line(),
-        axis.title.y = element_blank(),
-        axis.ticks.y=element_blank()) +
-  labs(x="State probability") +
-  #coord_cartesian(xlim=c(0.5,1)) +
-  #facet_wrap(~var,scales = "free") +
-  geom_text(aes(x=Known),label="Known",y=1:10 - 0.3,
-            hjust=.8,size=2,color=MetBrewer::met.brewer("Demuth",n=10)[1]) +
-  geom_text(aes(x=Uncertain),label="Unnown",y=1:10 - 0.3,
-            hjust=.8,size=2,color=MetBrewer::met.brewer("Demuth",n=10)[3]) +
-  geom_text(aes(x=Unknown),label="Uncertain",y=1:10 - 0.3,
-            hjust=.8,size=2,color=MetBrewer::met.brewer("Demuth",n=10)[5]) +
-  geom_text(aes(x=Wide),label="Wide",y=1:10 - 0.3,
-            hjust=.8,size=2,color=MetBrewer::met.brewer("Demuth",n=10)[7]) +
-geom_text(aes(label=area,x=mean),y = 1:10 - 0.4,hjust=.8) +
-  NULL
-}
-
-
+## Deprecated function in favour of 'do_STT_plot'
 plot_ancestral_states = function(tree_file,summary_statistic="MAP", 
                                  tree_layout="rectangular",
                                  include_start_states=FALSE, 
@@ -1463,25 +1586,7 @@ plot_ancestral_states = function(tree_file,summary_statistic="MAP",
       p = p + scale_color_manual(values=state_colors, breaks=state_labels,  name="Range", limits = used_states)
     }
     p = p + theme(legend.position="left")
-    
-    # # MJL: to remove later
-    # break_legend = F
-    # if (break_legend) {
-    #     p$data$x = p$data$x + (15 - max(p$data$x))
-    #     x_breaks = 0:15
-    #     x_labels = rep("", 16)
-    #     x_labels[ c(0,5,10,15)+1 ] = c(0,5,10,15)
-    #     p = p + scale_x_continuous(breaks = x_breaks, labels = rev(x_labels), sec.axis = sec_axis(~ ., breaks = 15-c(6.15, 4.15, 2.55, 1.2), labels=c("+K","+O","+M","+H") ))
-    #     p = p + theme_tree2()
-    #     p = p + coord_cartesian(xlim = c(0,20), expand=TRUE)
-    #     p = p + labs(x="Age (Ma)")
-    #     p = add_island_times(p)
-    #     p = p + theme(legend.position="left", axis.line = element_line(colour = "black"))
-    #     p = p + guides(colour = guide_legend(override.aes = list(size=5), nrow=6))
-    # }
-    
-    # get anc state matrices (for pie/bar charts)
-    #print(t)
+
     dat_state_end = build_state_probs(t, state_labels, include_start_states)$end
     dat_state_start = build_state_probs(t, state_labels, include_start_states)$start
     
@@ -1541,404 +1646,11 @@ plot_ancestral_states = function(tree_file,summary_statistic="MAP",
   return(p)
 }
 
-filter_trees <- function(target_tree="output_data/MCC_Master_Pruned.tre",trees="output_data/Master_Resolved.trees",output="output_data/Master_Resolved_Const.trees"){ 
-  backbone <- ape::read.nexus(here(target_tree))
-  iden <- which(backbone$tip.label %in% c("Plagiogyria_stenoptera",
-                                          "Culcita_coniifolia","Loxsoma_cunninghamii" ,"Cibotium_regale" ,
-                                          "Dicksonia_gigantea","Sphaeropteris_glauca", "Thyrsopteris_elegans", "Metaxya_rostrata"))
-  backbone.p <- drop.tip(backbone,tip =backbone$tip.label[-iden] )
-  comparison <- list()
-  a <- data.table::fread(here(trees),header = T,sep = "\t")
-  burn.in = 0
-  f_burn = burn.in * dim(a)[1]
-  if (burn.in == 0) f_burn = 1
-  a <-a[f_burn:dim(a)[1],]
-  tipas <- c("Plagiogyria_stenoptera","Culcita_coniifolia","Loxsoma_cunninghamii" ,
-             "Cibotium_regale" ,"Dicksonia_gigantea","Sphaeropteris_glauca", "Thyrsopteris_elegans", "Metaxya_rostrata")
-  master_compare <- 1:dim(a)[1] %>% future_map_lgl(function(lis){
-    r1 <- a$fbd_tree[lis] %>% ape::read.tree(text = .) 
-    r2 <- which(r1$tip.label %in% tipas) 
-    r3  <- ape::drop.tip(phy = r1, tip = r1$tip.label[-r2])  %>% all.equal.phylo(backbone.p,.,use.edge.length=FALSE)
-    return(r3)
-  },.progress = TRUE)
-  master_compare
-  table(unlist(master_compare))
-  write.table(a[which(unlist(master_compare)),],file=here(output),quote = F,col.names = T,row.names = F,sep = "\t")
-}
-
-do_rates <- function(tree_file = "output_data/MCC_Master_Resolved.tre",branch_rates_file = "output_data/Master_BDS_Resolved.log",parameter_name="net_div",burnin = 0,viridis_option="F",label_legend="NetDiv") 
-{ 
-  if ( (parameter_name %in% c("lambda", "mu", "net_div")) == FALSE ) {
-    print("Invalid parameter to plot.")
-    return()
-  }
-  # read in tree
-  tree <- try(read.tree(tree_file), silent=TRUE)
-  if ( class(tree) == "try-error"  ) {
-    tree = try(read.nexus(tree_file), silent=TRUE)
-  }
-  map <- matchNodes(tree)
-  # read the posterior distributions
-  samples <- read.table(branch_rates_file, sep="\t", stringsAsFactors=FALSE, check.names=FALSE, header=TRUE)
-  # calculate net diversification if needed
-  if (parameter_name == "net_div") {
-    lambdas <- as.matrix(samples[,grepl("avg_lambda", colnames(samples))])
-    mus <-  as.matrix(samples[,grepl("avg_mu", colnames(samples))])
-    net_divs <- as.data.frame(lambdas - mus)
-    colnames(net_divs) <- gsub("lambda","net_div",colnames(net_divs))
-    samples <- cbind(samples,net_divs)
-  }
-  
-  # discard some burnin 
-  n_samples <- nrow(samples)
-  # combine the mcmc output
-  rate_output <- samples[-c(1:ceiling(n_samples * burnin)),grepl(paste0("avg_",parameter_name), colnames(samples))]
-  # store the parameters
-  rate_mean <-  apply(rate_output,2,median) #colMeans(rate_output)
-  
-  branch_rates <- rate_mean[-length(rate_mean)]
-  
-  # compute the intervals
-  rate_intervals <- pretty(unlist(branch_rates), n=1001)
-  #rate_intervals <- c(0,0.2)
-  tree_tbl <- as_tibble(tree)
-  # compute the legend
-  legend_intervals <- pretty(rate_intervals)
-  legend_intervals <- legend_intervals[legend_intervals > min(rate_intervals) & legend_intervals < max(rate_intervals)]
-  legend_intervals_at <- (legend_intervals - min(rate_intervals)) / diff(range(rate_intervals))
-  
-  # get the branch rates
-  these_rates <- branch_rates[paste0("avg_",parameter_name,"[",map$Rev[match(tree$edge[,2], map$R)],"]")]
-
-  rate_tree = tree
-  rate_tree$edge.length <- these_rates
-  rate_tbl <- as_tibble(rate_tree)
-  tree_tbl$rates <- rate_tbl$branch.length
-  this_tree <- as.treedata(tree_tbl)
-  
-  tree_plot <- ggtree::ggtree(this_tree, aes(color=rates)) + scale_color_viridis(name=paste0(label_legend), option=viridis_option, limits=range(rate_intervals)) + theme(legend.position=c(0.2,0.85), legend.background=element_blank())
-  return(list(tree_plot,tree_tbl))
-}
-plot_rates <- function(pruned=T){ 
-  if(pruned) {arbol = "output_data/MCC_Master_Resolved.tre"
-  max_age <- 208.10
-  output="plots/BDS_pruned_NetDiv.pdf"
-  } else {arbol = "output_data/MCC_Master_Resolved.tre"
-  max_age <- 215.47
-  output="plots/BDS_full_NetDiv.pdf"}
-  tree <- read.nexus(here(arbol))
-  breaks <- max_age - c(0,2.58,23.03,66,145,201.3,251.9)
-  pos <- max_age - c(13,43,105,175,230)
-  colors <- c(MaizePal::maize_pal("RubyGold")[c(4,3,6)],MaizePal::maize_pal("OaxacaGreen")[c(2,4)],MaizePal::maize_pal("GlassGem")[2])
-  pp <- bds_tree + ylim(c(-40,Ntip(tree))) + 
-    annotate(geom="rect",ymin=-40,ymax=-5,xmin=breaks[1],xmax=breaks[2],fill=adjustcolor(colors[1],alpha.f = 0.6),color="black",size=0.2) +
-    annotate(geom="rect",ymin=-40,ymax=-5,xmin=breaks[2],xmax=breaks[3],fill=adjustcolor(colors[2],alpha.f = 0.6),color="black",size=0.2) +
-    annotate(geom="rect",ymin=-40,ymax=-5,xmin=breaks[3],xmax=breaks[4],fill=adjustcolor(colors[3],alpha.f = 0.6),color="black",size=0.2) + 
-    annotate(geom="rect",ymin=-40,ymax=-5,xmin=breaks[4],xmax=breaks[5],fill=adjustcolor(colors[4],alpha.f = 0.6),color="black",size=0.2) + 
-    annotate(geom="rect",ymin=-40,ymax=-5,xmin=breaks[5],xmax=breaks[6],fill=adjustcolor(colors[5],alpha.f = 0.6),color="black",size=0.2) +
-    annotate(geom="rect",ymin=-40,ymax=-5,xmin=breaks[6],xmax=breaks[7],fill=adjustcolor(colors[6],alpha.f = 0.6),color="black",size=0.2) + 
-    annotate(geom="text",x = pos,y = -20,label=c("NEO","PAL","CRE","JUR","TRI"),fontface="bold")
-  
-  pp_2 <- wrap_plots(list(pp)) + plot_layout(byrow=T,nrow = 1,ncol=1,guides = "keep",tag_level = 'new') + plot_annotation(title = "Diversification rates in tree ferns (Cyatheales)",subtitle="BSDR Model", caption= "Ramírez-Barahona") & theme(legend.position=c(0.1,0.7), legend.background=element_blank())
-  ggsave(here(output), width=15, height=15, units="cm",plot=pp_2)
-}
-rev.process.div.rates = function(speciation_times_file="rb_out/EDR/output/Cyatheales_EBD_speciation_times.log",speciation_rates_file="rb_out/EDR/output/Cyatheales_EBD_speciation_rates.log",extinction_times_file="rb_out/EDR/output/Cyatheales_EBD_extinction_times.log",extinction_rates_file="rb_out/EDR/output/Cyatheales_EBD_extinction_rates.log",fossilization_times_file="",fossilization_rates_file="",
-                                 tree = "output_data/MCC_Master_Resolved.tre",maxAge=NULL,burnin=0.25,numIntervals=10){
-  
-  # Get the time of the tree and divide it into intervals
-  if(!is.null(tree)){
-    tree <- read.nexus(here(tree))
-    time <- max(node.depth.edgelength(tree))
-    intervals <- seq(0,time,length.out=numIntervals+1)
-  } else {
-    intervals <- seq(0,maxAge,length.out=numIntervals+1)
-  }
-  
-  processSpeciationRates <- rev.read.mcmc.output.rates.through.time(here(speciation_times_file), here(speciation_rates_file), intervals, burnin)
-  processExtinctionRates <- rev.read.mcmc.output.rates.through.time(here(extinction_times_file), here(extinction_rates_file), intervals, burnin)
-  
-  # Process the net-diversification and relative-extinction rates
-  processNetDiversificationRates <- as.mcmc(processSpeciationRates-processExtinctionRates)
-  processRelativeExtinctionRates <- as.mcmc(processExtinctionRates/processSpeciationRates)
-  
-  processSpeciationRatesShiftProb <- c()
-  for ( i in 2:numIntervals ) {
-    processSpeciationRatesShiftProb[i] <- mean(processSpeciationRates[,i] > processSpeciationRates[,i-1])
-  }
-  
-  if ( fossilization_times_file != "" && fossilization_rates_file != "" ) {
-    
-    processFossilizationRates <- rev.read.mcmc.output.rates.through.time(here(fossilization_times_file), here(fossilization_rates_file), intervals, burnin)
-    
-    res <- list("speciation rate" = processSpeciationRates,
-                "extinction rate" = processExtinctionRates,
-                "fossilization rate" = processFossilizationRates,
-                "net-diversification rate" = processNetDiversificationRates,
-                "relative-extinction rate" = processRelativeExtinctionRates,
-                "tree" = tree,
-                "intervals" = rev(intervals) )
-    
-    return(res)
-    
-  } else {
-    
-    res <- list("speciation rate" = processSpeciationRates,
-                "extinction rate" = processExtinctionRates,
-                "net-diversification rate" = processNetDiversificationRates,
-                "relative-extinction rate" = processRelativeExtinctionRates,
-                "speciation rate shift prob" = processSpeciationRatesShiftProb,
-                "tree" = tree,
-                "intervals" = rev(intervals) )
-    
-    return(res)
-    
-  }
-}
-
-rev.read.mcmc.output.rates.through.time = function(times_file_name, rates_file_name, intervals, burnin=0.25) {
-  
-  # Process the rates
-  lines_to_skip <- 0
-  s <- readLines(times_file_name)[lines_to_skip+1]
-  while ( substring(s, 1, 1) == "#" ) {
-    lines_to_skip <- lines_to_skip + 1
-    s <- readLines(times_file_name)[lines_to_skip+1]
-  }
-  
-  cols <- strsplit(readLines(times_file_name)[lines_to_skip+1],"\t")[[1]]
-  col_headers <- c("Iteration","Replicate_ID","Posterior","Likelihood","Prior")
-  cols_to_skip <- sum(col_headers %in% cols)
-  
-  rate_change_times   <- strsplit(readLines(times_file_name)[-(1:(lines_to_skip+1))],"\t")
-  rates               <- strsplit(readLines(rates_file_name)[-(1:(lines_to_skip+1))],"\t")
-  n_burnt_sampled     <- round(length(rates) * burnin)
-  
-  process_rates <- as.mcmc(do.call(rbind,lapply(n_burnt_sampled:length(rate_change_times),function(sample) {
-    times <- as.numeric(rate_change_times[[sample]][-(1:cols_to_skip)])
-    rates <- as.numeric(rates[[sample]][-(1:cols_to_skip)])
-    order <- order(times)
-    times <- times[order]
-    rates <- c(rates[1],rates[-1][order])
-    res   <- rates[findInterval(intervals[-1],times)+1]
-    res   <- rev(res)
-    return (res)
-  } )))
-  
-  return(process_rates)
-  
-}
-matchNodes = function(phy) {
-  
-  # get some useful info
-  num_tips = length(phy$tip.label)
-  num_nodes = phy$Nnode
-  tip_indexes = 1:num_tips
-  node_indexes = num_tips + num_nodes:1
-  
-  node_map = data.frame(R=1:(num_tips + num_nodes), Rev=NA, visits=0)
-  current_node = phy$Nnode + 2
-  k = 1
-  t = 1
-  
-  while(TRUE) {
-    
-    if ( current_node <= num_tips ) {
-      node_map$Rev[node_map$R == current_node] = t
-      current_node = phy$edge[phy$edge[,2] == current_node,1]
-      t = t + 1
-    } else {
-      
-      if ( node_map$visits[node_map$R == current_node] == 0 ) {
-        node_map$Rev[node_map$R == current_node] = node_indexes[k]
-        k = k + 1
-      }
-      node_map$visits[node_map$R == current_node] = node_map$visits[node_map$R == current_node] + 1
-      
-      if ( node_map$visits[node_map$R == current_node] == 1 ) {
-        # go right
-        current_node = phy$edge[phy$edge[,1] == current_node,2][2]
-      } else if ( node_map$visits[node_map$R == current_node] == 2 ) {
-        # go left
-        current_node = phy$edge[phy$edge[,1] == current_node,2][1]
-      } else if ( node_map$visits[node_map$R == current_node] == 3 ) {
-        # go down
-        if (current_node == num_tips + 1) {
-          break
-        } else {
-          current_node = phy$edge[phy$edge[,2] == current_node,1]
-        }
-      }
-    }
-    
-  }
-  
-  return(node_map[,1:2])
-  
-}
-addLegend = function(tree, bins, colors, width=0.1, height=0.4, lwd=1, title="posterior probability", ...) {
-  
-  lastPP <- get("last_plot.phylo", envir = .PlotPhyloEnv)
-  
-  x_left   = width
-  x_right  = width + width * lastPP$x.lim[2]
-  y_bottom = bins[-length(bins)] * height * length(tree$tip.label)
-  y_top    = bins[-1] * height * length(tree$tip.label)
-  
-  ticks = pretty(bins)
-  ticks = ticks[ticks > min(bins)]
-  ticks = ticks[ticks < max(bins)]
-  y_tick = ticks * height * length(tree$tip.label)
-  if(lwd > 0) {
-    segments(x0=x_right, x1=x_right + 0.01 * abs(diff(lastPP$x.lim)), y0=y_tick, lwd=lwd, ...)
-  }
-  text(x=x_right + 0.02 * abs(diff(lastPP$x.lim)), y=y_tick, label=ticks, adj=0, ...)
-  rect(x_left, y_bottom, x_right, y_top, col=colors, border=colors)
-  
-  text(x_left - width / 1.5, mean(bins) * height * length(tree$tip.label), labels=title, srt=90, ...)
-  # text(x=x_left, y=max(y_top) + 0.02 * length(tree$tip.label), labels=title, adj=0, ...)
-  # points(x=x_left, y=max(y_top) + 0.05 * length(tree$tip.label))
-  
-}
-
-#### SAMPLED ANCESTOR RESOLVER FROM TRACE FILE PRODUCED BY REVBAYES ####
-#### The code is still very rough...... but it does the trick       ####
-#### This resolves sample ancestors on every single tree from the   ####
-#### posterior. A burn-in fraction can be specified (default zero). ####
-resolve_sampancestors <- function(trace_file = here("output_data/MCC_Master.tre"),taxa_file = here("rb_out/data/Master_taxa.tsv"),output = here("output_data/MCC_Master_Resolved.tre"),branch_length = 0.00001,burn.in=0){
-  a <- data.table::fread(trace_file,header = T,sep = "\t")
-  f_burn = burn.in * dim(a)[1]
-  if (burn.in == 0) f_burn = 1
-  a <-a[f_burn:dim(a)[1],]
-  b <- read.table(taxa_file,header=T)
-  taxa <-  as.character(b$taxon)
-  # Identifying which taxa are sampled ancestors in each tree in trace
-  res <- list()
-  cat("Identifying sampled ancestors on",dim(a)[1],"trees","\n")
-  res <- lapply(a$fbd_tree,function(j) unlist(lapply(taxa,function(x) length(grep(paste("\\)",x,sep=""),j)))))
-  taxas <- lapply(res,function(x) cbind(as.character(taxa),x))
-  cat("        ---- Indexing","\n")
-  index <- lapply(a$fbd_tree,function(x) strsplit(x,"&index="))
-  index_2 <- sapply(index,function(y)sapply(y,function(x) sub(']:.*', '', x)))
-  max_index <- unlist(lapply(index_2,function(x) max(as.numeric(x[-1]))))
-  indices <- lapply(index_2, function(x) setdiff(1:unique(max_index), as.numeric(x[-1,])))
-  
-  # Edit the tree string to resolve sampled ancestors for each tree in trace
-  counter <- length(taxas)
-  cat("Resolving sampled ancestors","\n")
-  for (k in 1:length(taxas)){
-    counter <- counter - 1
-    cat("Remaining trees to process:",counter,"\r")
-    taxa <- taxas[[k]]
-    if(length(which(taxa[,2]==1)) == 0) next
-    taxa <- taxa[which(taxa[,2]==1),]
-    if (is.null(dim(taxa)[1])){ 
-      grep(taxa[1],a$fbd_tree[k],fixed=T)
-      yy <- unlist(strsplit(a$fbd_tree[k],"]:"))
-      zz <- yy[grep(paste(taxa[1],"[&",sep=""),yy,fixed=T)]
-      zzz <- sub(")",",",zz)
-      aa <- sub(paste('.*',taxa[1],sep=""),"",zzz)
-      #if(length(paste(")",taxa[1],aa,"]",sep=""))>1) break ## probably not necessary (but I got a weird warning at some point)
-      #if(paste(",",taxa[1],aa,"]:",branch_length,")",sep="")>1) break ## probably not necessary (but I got a weird warning at some point)
-      a$fbd_tree[k] <- sub(paste(")",taxa[1],aa,"]",sep=""), paste(",",taxa[1],aa,"]:",branch_length,")","[&index=",indices[[k]][1],"]",sep=""),  a$fbd_tree[k],fixed=T)
-    } else {
-      dimas = dim(taxa)[1]
-      for (i in 1:dimas){ 
-        grep(taxa[i,1],a$fbd_tree[k],fixed=T)
-        yy <- unlist(strsplit(a$fbd_tree[k],"]:"))
-        zz <- yy[grep(paste(taxa[i,1],"[&",sep=""),yy,fixed=T)]
-        zzz <- sub(")",",",zz)
-        aa <- sub(paste('.*',taxa[i,1],sep=""),"",zzz)
-        #if(length(paste(")",taxa[i,1],aa,"]",sep=""))>1) break ## probably not necessary (but I got a weird warning at some point)
-        #if(paste(",",taxa[i,1],aa,"]:",branch_length,")",sep="")>1) break ## probably not necessary (but I got a weird warning at some point)
-        a$fbd_tree[k] <- sub(paste(")",taxa[i,1],aa,"]",sep=""), paste(",",taxa[i,1],aa,"]:",branch_length,")","[&index=",indices[[k]][i],"]",sep=""),  a$fbd_tree[k],fixed=T)
-        #sub(paste(")",taxa[i,1],aa,"]",sep=""), paste(",",taxa[i,1],aa,"]:",branch_length,")","[&index=",indices[[k]][i],"]",sep=""), a$fbd_tree[k],fixed=T)
-        
-      }
-    }
-    
-  }
-  write.table(a,file=output,quote = F,col.names = T,row.names = F,sep = "\t")
-}
-#### This is executed prior to the ASE analyses on the full data set ####
-#### For the pruned trees, this is unnecessary.                      ####
-
-#### Filter trees from posterior sample that match the family-level backbone topology from the RAxML phylogeny
-#### This is necessary  to sample trees from the posterior during the ASE analyses: trees with a weird topology are favored during the reconstruction, which is not correct ####
-filter_trees <- function(target_tree="output_data/MCC_Master_Pruned.tre",trees="output_data/Master_Resolved.trees",output="output_data/Master_Resolved_Const.trees"){ 
-backbone <- ape::read.nexus(here(target_tree))
-iden <- which(backbone$tip.label %in% c("Plagiogyria_stenoptera",
-    "Culcita_coniifolia","Loxsoma_cunninghamii" ,"Cibotium_regale" ,
-    "Dicksonia_gigantea","Sphaeropteris_glauca", "Thyrsopteris_elegans", "Metaxya_rostrata"))
-backbone.p <- drop.tip(backbone,tip =backbone$tip.label[-iden] )
-comparison <- list()
-a <- data.table::fread(here(trees),header = T,sep = "\t")
-burn.in = 0
-f_burn = burn.in * dim(a)[1]
-if (burn.in == 0) f_burn = 1
-a <-a[f_burn:dim(a)[1],]
-tipas <- c("Plagiogyria_stenoptera","Culcita_coniifolia","Loxsoma_cunninghamii" ,
-  "Cibotium_regale" ,"Dicksonia_gigantea","Sphaeropteris_glauca", "Thyrsopteris_elegans", "Metaxya_rostrata")
-master_compare <- 1:dim(a)[1] %>% future_map_lgl(function(lis){
-  r1 <- a$fbd_tree[lis] %>% ape::read.tree(text = .) 
-  r2 <- which(r1$tip.label %in% tipas) 
-  r3  <- ape::drop.tip(phy = r1, tip = r1$tip.label[-r2])  %>% all.equal.phylo(backbone.p,.,use.edge.length=FALSE)
-  return(r3)
-},.progress = TRUE)
-master_compare
-table(unlist(master_compare))
-write.table(a[which(unlist(master_compare)),],file=here(output),quote = F,col.names = T,row.names = F,sep = "\t")
-}
-
-##### This is the slow version: june 2020
-#comparison<-list()
-#for (i  in 1:100){ 
-#  cat("processing tree",i,"\r")
-#   target <- ape::read.tree(text = a$fbd_tree[i])
-#   iden <- which(target$tip.label %in% c("Plagiogyria_stenoptera","Culcita_conniifolia","Loxoma_cunninghamii" ,"Cibotium_regale" ,"Dicksonia_gigantea","Sphaeropteris_glauca", "Thyrsopteris_elegans", "Metaxya_rostrata"))
-#   target.p <- ape::drop.tip(target,tip =target$tip.label[-iden] )
-#   comparePhylo(backbone.p,target.p,plot=T)
-# comparison[[i]] <- all.equal.phylo(backbone.p,target.p,use.edge.length=FALSE) 
-#}
-#unlist(comparison)
-
-#### MAKE JOINT FILES FROM  MULTIPLE RUNS OF ASE ####
-
-setwd("~/Documents/6.SCRIPTS/RevBayes_TrialRun/output/")
-a <- data.table::fread("my_run.1.no_biome_run_1.trees",header = T,sep = "\t")
-burn <- max(a$Iteration) * 0.8
-a <- a[-c(1:which(a$Iteration==burn)),]
-b <- data.table::fread("my_run.1.no_biome_run_2.trees",header = T,sep = "\t")
-burn <- max(b$Iteration) *0.8
-b <- b[-c(1:which(b$Iteration==burn)),]
-joint <- rbind(a,b)
-dim(joint)
-joint$Iteration <- seq(10,dim(a)[1]*2*10,10)
-write.table(joint,file="my_run.joint.no_biome.trees",quote = F,col.names = T,row.names = F,sep = "\t")
-
-a <- data.table::fread("my_run.1.no_biome.bg.states_run_1.txt",header = T,sep = "\t")
-burn <- max(a$Iteration) * 0.5
-a <- a[-c(1:which(a$Iteration==burn)),]
-b <- data.table::fread("my_run.1.no_biome.bg.states_run_2.txt",header = T,sep = "\t")
-burn <- max(b$Iteration) * 0.5
-b <- b[-c(1:which(b$Iteration==burn)),]
-joint <- rbind(a,b)
-dim(joint)
-joint$Iteration <- seq(10,dim(a)[1]*2*10,10)
-write.table(joint,file="my_run.joint.no_biome.bg.states.txt",quote = F,col.names = T,row.names = F,sep = "\t")
-
-a <- data.table::fread("my_run.1.no_biome.bg.stoch_map_run_1.txt",header = T,sep = "\t")
-burn <- max(a$Iteration) * 0.5
-a <- a[-c(1:which(a$Iteration==burn)),]
-b <- data.table::fread("my_run.1.no_biome.bg.stoch_map_run_2.txt",header = T,sep = "\t")
-burn <- max(b$Iteration) * 0.5
-b <- b[-c(1:which(b$Iteration==burn)),]
-joint <- rbind(a,b)
-dim(joint)
-joint$Iteration <- seq(10,dim(a)[1]*2*10,10)
-write.table(joint,file="my_run.joint.no_biome.bg.stoch_map.txt",quote = F,col.names = T,row.names = F,sep = "\t")
-#### This is executed prior to summarizing the ASE results ####
 
 ######## GEOGRAPHIC DATA ########
+## The following chunk of code is not properly tested, nor used in the analyses..... need to be tidy and funtional.
+## Also need to integrate with script of Ramírez-Barahona et al. (2023) and match against Kew's POW.
+## The function were last seen February 2024
 
 B <- 10
 B
@@ -2295,26 +2007,3 @@ srb_summary[which(rowSums(srb_summary[,7:ncol(srb_summary)])>=4)[j],7:11] <- as.
 
 output <- bind_cols(srb_summary$species,apply(srb_summary[,7:ncol(srb_summary)],1,paste,collapse=""))
 write.table(output,"data/Niche.tsv",quote = F,sep="\t",row.names = F)
-
-
-
-
-
-
-
-
-##############
-do_ARR_plot( ase.tre = "rb_out/output_summ/my_run.1.no_biome.bg.ase.tre",states_file="input_data/AreaCodes_n8_2.tsv",title = "Cyatheales_ARR_trace" ,output = "plots/ARR_Full.pdf" ,
-             out_probes_nodes="output_data/probsNodes_Full.csv",
-             out_probs_full = "output_data/probs_Full.RData",
-             tree_layout = "rectangular",tip_pie_diameter = 5,node_pie_diameter = 5,save=T,burn.in = 0.0,drop.tips=TRUE)
-
-do_STT_plot(stoch = "rb_out/output_masked_king_wide/my_run.1.no_biome.history.tsv", area.codes = "input_data/AreaCodes_n3_unrestricted.txt",n.areas=3,max.time = 260,burn.in=0.0,support_plot=TRUE,save=TRUE,output = "output_data/HistoryTable_KingsWide_corrected_v2.RData")
-
-
-
-ggsave2(plot = p_shld,filename = "plots/ARR_trace_pruned_ASE_july.pdf", height = 10,  width = 10)
-ggsave2(plot = p3,filename = "plots/ARR_trace_full_STT_july.pdf", height = 10,  width = 10)
-#ggsave2(plot = p_shld / p3,filename = "plots/ARR_trace_full.pdf", height = 10,  width = 10)
-
-
