@@ -2,7 +2,7 @@
 
 The scripts run under revBayes v.1.1.1 (last checked November 2023). 
 
-![plot](./directory_1/directory_2/.../directory_n/plot.png)
+![plot](figure_S1.png)
 
 The **ARE** directory (*Ancestral Range Estimation*) contains the necessary scripts to perform the biogeographical analyses.  
 - The biogeographical modelling is performed with the script **mcmc_A.Rev**.  
@@ -16,3 +16,10 @@ The **FBD** directory (*Fossilised Birth Death*) contains the necessary scripts 
 - The tree dating is performed with the script **mcmc_A.Rev**.
   - This script contains all the global settings needed and sources all other scripts (**model_DATA.Rev**, **model_FBDP_A.Rev**, **model_GTR.Rev**, and **model_UExp.Rev**).
 - The results are summarised with the script **summarize.Rev**.  
+
+The **data** directory contains all the necessary data and input files to run the analyses for the eight- and the three-area reconstructios. These data include:  
+- Molecular alingment.  
+- MCC trees and posterior sample of trees.
+- Distribution data coded in *Nexus* format.
+- Conectivity matrices (one for each epoch).
+- Fossil ages.  
