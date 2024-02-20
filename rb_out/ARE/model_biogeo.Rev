@@ -1,54 +1,51 @@
 n_bg_epochs = times_bg.size()
 
-#### Multiple extirpation rates #####
+### Define extirpation rates from log-normal distributions ###
+### We first define rates for two areas, and if needed expand to three or eight areas ###
 er_base_sd <- 0.1
 er_base_mean <- ln(abs(1.0)) - 0.5 * er_base_sd^2
-
 er_base_1 ~ dnLognormal(er_base_mean, er_base_sd)
 er_base_1.setValue(0.01)
-mv[mvi++] = mvScale(er_base_1, weight=5)
-
 er_base_2 ~ dnLognormal(er_base_mean, er_base_sd)
 er_base_2.setValue(0.01)
+mv[mvi++] = mvScale(er_base_1, weight=5)
 mv[mvi++] = mvScale(er_base_2, weight=5)
 
+### Conditional statement to create vector of rates for two areas ###
 if(n_areas == 2) {er_base := v(er_base_1, er_base_2)}
 
+### Conditional statement to create vector of rates for three areas ###
 if(n_areas == 3) { 
 er_base_3 ~ dnLognormal(er_base_mean, er_base_sd)
 er_base_3.setValue(0.01)
 mv[mvi++] = mvScale(er_base_3, weight=5)
-
 er_base := v(er_base_1, er_base_2, er_base_3)}
 
+### Conditional statement to create vector of rates for eight areas ###
 if(n_areas == 8) { 
 er_base_3 ~ dnLognormal(er_base_mean, er_base_sd)
 er_base_3.setValue(0.01)
-mv[mvi++] = mvScale(er_base_3, weight=5)
-
 er_base_4 ~ dnLognormal(er_base_mean, er_base_sd)
 er_base_4.setValue(0.01)
-mv[mvi++] = mvScale(er_base_4, weight=5)
-
 er_base_5 ~ dnLognormal(er_base_mean, er_base_sd)
 er_base_5.setValue(0.01)
-mv[mvi++] = mvScale(er_base_5, weight=5)
-
 er_base_6 ~ dnLognormal(er_base_mean, er_base_sd)
 er_base_6.setValue(0.01)
-mv[mvi++] = mvScale(er_base_6, weight=5)
-
 er_base_7 ~ dnLognormal(er_base_mean, er_base_sd)
 er_base_7.setValue(0.01)
-mv[mvi++] = mvScale(er_base_7, weight=5)
-
 er_base_8 ~ dnLognormal(er_base_mean, er_base_sd)
 er_base_8.setValue(0.01)
+mv[mvi++] = mvScale(er_base_3, weight=5)
+mv[mvi++] = mvScale(er_base_4, weight=5)
+mv[mvi++] = mvScale(er_base_5, weight=5)
+mv[mvi++] = mvScale(er_base_6, weight=5)
+mv[mvi++] = mvScale(er_base_7, weight=5)
 mv[mvi++] = mvScale(er_base_8, weight=5)
 
 er_base := v(er_base_1, er_base_2, er_base_3, er_base_4, er_base_5, er_base_6, er_base_7, er_base_8)
 }
 
+### Create matrix ###
 for (i in 1:n_areas) {
     for (j in 1: n_areas) {
         er_bg[i][j] <- abs(0)
@@ -56,12 +53,14 @@ for (i in 1:n_areas) {
     }
 }
 
-# clock
+### Define clock model for biogeographic rates ###
 clock_bg ~ dnLoguniform(min = 0.001, max=10 )
 clock_bg.setValue(1e-2)
 #mv[mvi++] = mvScale(clock_bg, lambda=0.2, weight=2)
 mv[mvi++] = mvScale(clock_bg, weight=2)
 
+
+### Construct matrices for epoch model ###
 if(use_epochs) {
     ldd ~ dnBeta(1,1)
     ldd.setValue(0.1)
@@ -85,7 +84,7 @@ for (k in 1:n_bg_epochs) {bg_times[k] <- times_bg[k][2]}
 
 Q_DEC_epoch := fnEpoch( Q_DEC, bg_times, rep(1., n_bg_epochs) )
 
-# clado probs
+### Define prior on cladogenetic events from a beta distribution on sympatry ###
 clado_event_types = ["s","a"]
 p_sympatry ~ dnBeta(0.1,1)
 p_sympatry.setValue(0.15)
@@ -97,21 +96,18 @@ P_DEC := fnDECCladoProbs(eventProbs= clado_event_probs,
                               numCharacters= n_areas,
                               maxRangeSize=max_areas)
 
-# root freqs
+### Define root frequencies ###
 rf_bg_raw <- rep(1, n_states)
 rf_bg := simplex(rf_bg_raw)
 
-# If the tree topology is not fixed, the MCMC chain will sample from the posterior sample of trees.
+### If the tree topology is not fixed, the MCMC chain will sample from the posterior sample of trees ###
 if(!fixed) fbd_tree ~ dnEmpiricalTree(treetrace)
 if(!fixed) mv[mvi++] = mvEmpiricalTree(fbd_tree, weight=5, metropolisHastings=true)
 
-#if(!masked) {m_bg ~ dnPhyloCTMCClado(tree = fbd_tree, Q = Q_DEC_epoch, rootFrequencies=rf_bg, cladoProbs=P_DEC, branchRates=clock_bg, nSites=1, type="NaturalNumbers")}
-#if(masked) m_bg ~ dnPhyloCTMCClado(tree = fbd_tree, Q = Q_DEC_epoch, rootFrequencies=rf_bg, cladoProbs=P_DEC, branchRates=clock_bg, nSites=1, type="Standard")
+# if(!masked) {m_bg ~ dnPhyloCTMCClado(tree = fbd_tree, Q = Q_DEC_epoch, rootFrequencies=rf_bg, cladoProbs=P_DEC, branchRates=clock_bg, nSites=1, type="NaturalNumbers")}
+# if(masked) m_bg ~ dnPhyloCTMCClado(tree = fbd_tree, Q = Q_DEC_epoch, rootFrequencies=rf_bg, cladoProbs=P_DEC, branchRates=clock_bg, nSites=1, type="Standard")
 
 if(!masked) {m_bg ~ dnPhyloCTMCClado(tree = fbd_tree, Q = Q_DEC_epoch, rootFrequencies=rf_bg, cladoProbs=P_DEC,branchRates=clock_bg, nSites=1, type="NaturalNumbers")}
 if(masked) m_bg ~ dnPhyloCTMCClado(tree = fbd_tree, Q = Q_DEC_epoch, rootFrequencies=rf_bg, cladoProbs=P_DEC, branchRates=clock_bg, nSites=1, type="Standard")
 
-
 m_bg.clamp(dat_bg_n)
-
-
