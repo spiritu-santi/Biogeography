@@ -17,7 +17,7 @@ The code was last checked and updated February 20, 2024.
 The R and RevBayes code was last updated November 10, 2023 and contains all the necessary functions.
 
 Code and data are available at Zenodo:  
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8239494.svg)](https://doi.org/10.5281/zenodo.8239494)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8239493.svg)](https://doi.org/10.5281/zenodo.8239493)
 
 When using the RevBayes code please cite:
 - Ramírez-Barahona S (2024) Incorporating fossils into the joint inference of phylogeny and biogeography of the tree fern order Cyatheales. *under review*
