@@ -74,7 +74,7 @@ mv[mvi++] = mvSlide(ldd, weight=10, delta=0.2)}
         }
     }
 
-    Q_DEC[k] := fnDECRateMatrix(dispersalRates=v[k],
+    Q_DEC[k] := fnDECRateMatrix(dispersalRates=dr_bg[k],
                                 extirpationRates=er_bg,
                                 maxRangeSize=max_areas,
                                 nullRange="Exclude")
