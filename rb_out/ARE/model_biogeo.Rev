@@ -14,14 +14,14 @@ mv[mvi++] = mvScale(er_base_2, weight=5)
 ### Conditional statement to create vector of rates for two areas ###
 if(n_areas == 2) {er_base := v(er_base_1, er_base_2)}
 
-### Conditional statement to create vector of rates for three areas ###
+### Conditional statement to create vector of rates for the third area ###
 if(n_areas == 3) { 
 er_base_3 ~ dnLognormal(er_base_mean, er_base_sd)
 er_base_3.setValue(0.01)
 mv[mvi++] = mvScale(er_base_3, weight=5)
 er_base := v(er_base_1, er_base_2, er_base_3)}
 
-### Conditional statement to create vector of rates for eight areas ###
+### Conditional statement to create vector of rates for the remaining six areas ###
 if(n_areas == 8) { 
 er_base_3 ~ dnLognormal(er_base_mean, er_base_sd)
 er_base_3.setValue(0.01)
