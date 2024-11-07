@@ -89,7 +89,7 @@ clado_event_types = ["s","a"]
 p_sympatry ~ dnBeta(0.1,1)
 p_sympatry.setValue(0.15)
 mv[mvi++] = mvSlide(p_sympatry, weight=5, delta=0.2)
-p_allopatry := abs(1.0 - p_sympatvry)
+p_allopatry := abs(1.0 - p_sympatry)
 clado_event_probs := simplex( p_sympatry, p_allopatry )
 P_DEC := fnDECCladoProbs(eventProbs= clado_event_probs,
                               eventTypes=clado_event_types,
